@@ -21,8 +21,8 @@ def main(raw_args=None):
     parser.add_argument('--tlblock', type=str, default='mg', help='Solver for the velocity-velocity block. mg==Multigrid with patchPC, lu==direct solver with MUMPS, patch==just do a patch smoother. Default is mg')
     parser.add_argument('--schurpc', type=str, default='mass', help='Preconditioner for the Schur complement. mass==mass inverse, helmholtz==helmholtz inverse * laplace * mass inverse. Default is mass')
     parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
-    parser.add_argument('--time_scheme', type=int, default=1, help='Timestepping scheme. 0=Crank-Nicholson. 1=Implicit midpoint rule.')
-
+    parser.add_argument('--time_scheme', type=int, default=0, help='Timestepping scheme. 0=TR-BDF2.')
+    
     args = parser.parse_known_args(raw_args)
     args = args[0]
 
@@ -120,10 +120,13 @@ def main(raw_args=None):
 
     dx = fd.dx
 
-    Un = fd.Function(W)
-    Unp1 = fd.Function(W)
+    Un = fd.Function(W, name="Un")
+    Ug = fd.Function(W, name="Ug")
+    Unp1 = fd.Function(W, name="Unp1")
+
 
     u0, h0 = fd.split(Un)
+    ug, hg = fd.split(Ug)
     u1, h1 = fd.split(Unp1)
     n = fd.FacetNormal(mesh)
 
@@ -153,54 +156,53 @@ def main(raw_args=None):
                                 - uup('-')*h('-'))*dS)
 
 
-    if args.time_scheme == 1:
-        "implicit midpoint rule"
-        uh = 0.5*(u0 + u1)
-        hh = 0.5*(h0 + h1)
 
-        testeqn = (
-            fd.inner(v, u1 - u0)*dx
-            + dT*u_op(v, uh, hh)
-            + phi*(h1 - h0)*dx
-            + dT*h_op(phi, uh, hh))
-        # the extra bit
-        eqn = testeqn \
-            + gamma*(fd.div(v)*(h1 - h0)*dx
-                    + dT*h_op(fd.div(v), uh, hh))
-
-        
-    elif args.time_scheme == 0:
-        "Crank-Nicholson rule"
+    if args.time_scheme == 0:
+        "TR-BDF2"
+        gam = fd.Constant(2-(2**0.5))
         half = fd.Constant(0.5)
+        quo1 = fd.Constant(1/(gam*(2-gam)))
+        quo2 = fd.Constant(1/(2-gam))
+        con1 = fd.Constant((1-gam)**2*quo1)
+        con2 = fd.Constant((1-gam)*quo2)
 
-        testeqn = (
-            fd.inner(v, u1 - u0)*dx
-            + half*dT*u_op(v, u0, h0)
-            + half*dT*u_op(v, u1, h1)
-            + phi*(h1 - h0)*dx
-            + half*dT*h_op(phi, u0, h0)
-            + half*dT*h_op(phi, u1, h1))
-        # the extra bit
-        eqn = testeqn \
-            + gamma*(fd.div(v)*(h1 - h0)*dx
-                    + half*dT*h_op(fd.div(v), u0, h0)
-                    + half*dT*h_op(fd.div(v), u1, h1))
+        testeqn1 = (
+            fd.inner(v, ug - u0)*dx
+            + gam*half*dT*u_op(v, u0, h0)
+            + gam*half*dT*u_op(v, ug, hg)
+            + phi*(hg - h0)*dx
+            + gam*half*dT*h_op(phi, u0, h0)
+            + gam*half*dT*h_op(phi, ug, hg))
+
+        eqn1 = testeqn1 \
+            + 0    
+
+        testeqn2 = (
+            fd.inner(v, u1 - quo1*ug + con1*u0)*dx
+            + con2*dT*u_op(v, u1, h1)
+            + phi*(h1 - quo1*hg + con1*h0)*dx
+            + con2*dT*h_op(phi, u1, h1))         
+        
+        eqn2 = testeqn2 \
+            + 0  
+
+
     else:
         raise NotImplementedError
-        
-    # U_t + N(U) = 0
-    # IMPLICIT MIDPOINT
-    # U^{n+1} - U^n + dt*N( (U^{n+1}+U^n)/2 ) = 0.
+
 
     # TRAPEZOIDAL RULE
     # U^{n+1} - U^n + dt*( N(U^{n+1}) + N(U^n) )/2 = 0.
-        
-    # Newton's method
-    # f(x) = 0, f:R^M -> R^M
-    # [Df(x)]_{i,j} = df_i/dx_j
-    # x^0, x^1, ...
-    # Df(x^k).xp = -f(x^k)
-    # x^{k+1} = x^k + xp.
+
+    # BDF2
+    # y^{n+2} - 4/3*y^{n+1} +1/3*y^n - 2/3*dt*( f(y^{n+2})) = 0 
+
+    # TR-BDF2
+    # y^{n+g} - y^n - g*dt/2*( f(y^{n+g}+f(y^{n}))) = 0   
+    # y^{n+1} - 1/(g*(2-g))*y^{n+g} - (1-g)/(2-g)*dt*f(y^{n+1}) + (1-g)^2/(g*(2-g))*y^n = 0
+
+
+
 
     class HelmholtzPC(fd.PCBase):
         def initialize(self, pc):
@@ -450,11 +452,18 @@ def main(raw_args=None):
     dT.assign(dt)
     t = 0.
 
-    nprob = fd.NonlinearVariationalProblem(eqn, Unp1)
+    nprob1 = fd.NonlinearVariationalProblem(eqn1, Ug)
     ctx = {"mu": gamma*2/g/dt}
-    nsolver = fd.NonlinearVariationalSolver(nprob,
+    nsolver1 = fd.NonlinearVariationalSolver(nprob1,
                                             solver_parameters=sparameters,
                                             appctx=ctx)
+
+    nprob2 = fd.NonlinearVariationalProblem(eqn2, Unp1)
+    ctx = {"mu": gamma*2/g/dt}
+    nsolver2 = fd.NonlinearVariationalSolver(nprob2,
+                                            solver_parameters=sparameters,
+                                            appctx=ctx)
+
     vtransfer = mg.ManifoldTransfer()
     tm = fd.TransferManager()
     transfers = {
@@ -464,7 +473,8 @@ def main(raw_args=None):
                         vtransfer.inject)
     }
     transfermanager = fd.TransferManager(native_transfers=transfers)
-    nsolver.set_transfer_manager(transfermanager)
+    nsolver1.set_transfer_manager(transfermanager)
+    nsolver2.set_transfer_manager(transfermanager)
 
     dmax = args.dmax
     hmax = 24*dmax
@@ -513,7 +523,7 @@ def main(raw_args=None):
     file_sw.write(un, etan, qn)
     Unp1.assign(Un)
 
-    mesh.name = "meshI"
+    mesh.name = "meshT"
     V1DG = fd.VectorFunctionSpace(mesh,"DG",degree+1)
     u_out = fd.Function(V1DG, name="u_out")
     h_out = fd.Function(V2, name="h_out")
@@ -526,14 +536,12 @@ def main(raw_args=None):
         t += dt
         tdump += dt
 
-        nsolver.solve()
-        res = fd.assemble(testeqn)
-        PETSc.Sys.Print(res.dat.data[0].max(), res.dat.data[0].min(),
-            res.dat.data[1].max(), res.dat.data[1].min())
+        nsolver1.solve()
+        nsolver2.solve()
         Un.assign(Unp1)
-        res = fd.assemble(testeqn)
+        res = fd.assemble(testeqn1+testeqn2)
         PETSc.Sys.Print(res.dat.data[0].max(), res.dat.data[0].min(),
-            res.dat.data[1].max(), res.dat.data[1].min())
+            res.dat.data[1].max(), res.dat.data[1].min())          
         
         if tdump > dumpt - dt*0.5:
             etan.assign(h0 - H + b)
@@ -542,13 +550,13 @@ def main(raw_args=None):
             file_sw.write(un, etan, qn)
             tdump -= dumpt
         stepcount += 1
-        itcount += nsolver.snes.getLinearSolveIterations()
+        itcount += nsolver1.snes.getLinearSolveIterations()
     PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
                     "dt", dt, "tlblock", args.tlblock, "ref_level", args.ref_level, "dmax", args.dmax)
 
     u_out.interpolate(u0)
     h_out.interpolate(h0)
-    with fd.CheckpointFile("im_dt"+str(dt)+".h5", 'w') as afile:
+    with fd.CheckpointFile("trbdf2_dt"+str(dt)+".h5", 'w') as afile:
         afile.save_mesh(mesh)  
         afile.save_function(u_out)
         afile.save_function(h_out)
