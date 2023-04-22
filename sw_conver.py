@@ -3,15 +3,15 @@ import sw_test
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--w', type=bool, default=False)
+parser.add_argument('--w', type=bool, default=False) #Toggle writing of files
 args = parser.parse_known_args()
 args = args[0]
 U = []
 H = []
 
-for i, T in enumerate([0.5, 1.0, 2.0, 4.0, 8.0]):
+for i, T in enumerate([2.0**(-n) for n in range(-2, 6)]):
     if args.w:
-        sw_test.main(["--ref_level=2", "--dmax=15", "--dt="+str(T)])
+        sw_test.main(["--ref_level=3", "--dmax=1", "--dt="+str(T)])
     
     with fd.CheckpointFile("test_dt"+str(60*60*T)+".h5", 'r') as afile:
         meshI = afile.load_mesh("mesh")
@@ -25,4 +25,4 @@ for i, T in enumerate([0.5, 1.0, 2.0, 4.0, 8.0]):
 
     U.append(u_error)
     H.append(h_error)
-    print(f"L2 error at time {T} is u: {U[i]}, h: {H[i]}")
+    print(f"L2 error at dt: {T} is u: {U[i]}, h: {H[i]}")
