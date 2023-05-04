@@ -5,7 +5,7 @@ sw_im.py: Crank-Nicholson and Implicit Midpoint methods \
 sw_trbdf2.py: TR-BDF2 method \
 sw_convergence.py: calculate L2-norm by reading values from sw_im.py and sw_trbdf2.py \
 sw_height: plot the height of a point against time \
-sw_fourier: Fourier analysis of height  \
+sw_fourier: Fourier analysis of height  
 
 
 Redundant Files: \
