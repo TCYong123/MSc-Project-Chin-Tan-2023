@@ -4,7 +4,9 @@ from petsc4py import PETSc
 PETSc.Sys.popErrorHandler()
 import mg
 import argparse
-def main(raw_args=None):
+import numpy as np
+
+def main(raw_args=None, mesh=None):
     parser = argparse.ArgumentParser(description='Williamson 5 testcase for augmented Lagrangian solver.')
     parser.add_argument('--base_level', type=int, default=1, help='Base refinement level of icosahedral grid for MG solve. Default 1.')
     parser.add_argument('--ref_level', type=int, default=5, help='Refinement level of icosahedral grid. Default 5.')
@@ -22,6 +24,7 @@ def main(raw_args=None):
     parser.add_argument('--schurpc', type=str, default='mass', help='Preconditioner for the Schur complement. mass==mass inverse, helmholtz==helmholtz inverse * laplace * mass inverse. Default is mass')
     parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
     parser.add_argument('--time_scheme', type=int, default=0, help='Timestepping scheme. 0=TR-BDF2.')
+    parser.add_argument('--write', type=int, default=0, help='Write files. 0=None, 1=Convergence, 2=height array')
     
     args = parser.parse_known_args(raw_args)
     args = args[0]
@@ -39,47 +42,48 @@ def main(raw_args=None):
     distribution_parameters = {"partition": True, "overlap_type": (fd.DistributedMeshOverlapType.VERTEX, 2)}
     #distribution_parameters = {"partition": True, "overlap_type": (fd.DistributedMeshOverlapType.FACET, 2)}
 
+    if mesh == None:
+        def high_order_mesh_hierarchy(mh, degree, R0):
+            meshes = []
+            for m in mh:
+                X = fd.VectorFunctionSpace(m, "Lagrange", degree)
+                new_coords = fd.interpolate(m.coordinates, X)
+                x, y, z = new_coords
+                r = (x**2 + y**2 + z**2)**0.5
+                new_coords.interpolate
+                
+                
+                (R0*new_coords/r)
+                new_mesh = fd.Mesh(new_coords)
+                meshes.append(new_mesh)
 
-    def high_order_mesh_hierarchy(mh, degree, R0):
-        meshes = []
-        for m in mh:
-            X = fd.VectorFunctionSpace(m, "Lagrange", degree)
-            new_coords = fd.interpolate(m.coordinates, X)
-            x, y, z = new_coords
-            r = (x**2 + y**2 + z**2)**0.5
-            new_coords.interpolate
-            
-            
-            (R0*new_coords/r)
-            new_mesh = fd.Mesh(new_coords)
-            meshes.append(new_mesh)
+            return fd.HierarchyBase(meshes, mh.coarse_to_fine_cells,
+                                    mh.fine_to_coarse_cells,
+                                    mh.refinements_per_level, mh.nested)
 
-        return fd.HierarchyBase(meshes, mh.coarse_to_fine_cells,
-                                mh.fine_to_coarse_cells,
-                                mh.refinements_per_level, mh.nested)
-
-    if args.tlblock == "mg":
-        basemesh = fd.IcosahedralSphereMesh(radius=R0,
-                                            refinement_level=base_level,
-                                            degree=1,
+        if args.tlblock == "mg":
+            basemesh = fd.IcosahedralSphereMesh(radius=R0,
+                                                refinement_level=base_level,
+                                                degree=1,
+                                                distribution_parameters = distribution_parameters)
+            del basemesh._radius
+            mh = fd.MeshHierarchy(basemesh, nrefs)
+            mh = high_order_mesh_hierarchy(mh, deg, R0)
+            for mesh in mh:
+                xf = mesh.coordinates
+                mesh.transfer_coordinates = fd.Function(xf)
+                x = fd.SpatialCoordinate(mesh)
+                r = (x[0]**2 + x[1]**2 + x[2]**2)**0.5
+                xf.interpolate(R0*xf/r)
+                mesh.init_cell_orientations(x)
+            mesh = mh[-1]
+        else:
+            mesh = fd.IcosahedralSphereMesh(radius=R0,
+                                            refinement_level=args.ref_level, degree=deg,
                                             distribution_parameters = distribution_parameters)
-        del basemesh._radius
-        mh = fd.MeshHierarchy(basemesh, nrefs)
-        mh = high_order_mesh_hierarchy(mh, deg, R0)
-        for mesh in mh:
-            xf = mesh.coordinates
-            mesh.transfer_coordinates = fd.Function(xf)
             x = fd.SpatialCoordinate(mesh)
-            r = (x[0]**2 + x[1]**2 + x[2]**2)**0.5
-            xf.interpolate(R0*xf/r)
             mesh.init_cell_orientations(x)
-        mesh = mh[-1]
-    else:
-        mesh = fd.IcosahedralSphereMesh(radius=R0,
-                                        refinement_level=args.ref_level, degree=deg,
-                                        distribution_parameters = distribution_parameters)
-        x = fd.SpatialCoordinate(mesh)
-        mesh.init_cell_orientations(x)
+
     R0 = fd.Constant(R0)
     cx, cy, cz = fd.SpatialCoordinate(mesh)
 
@@ -516,17 +520,18 @@ def main(raw_args=None):
     qsolver = fd.LinearVariationalSolver(vprob,
                                         solver_parameters=qparams)
 
-    file_sw = fd.File(name+'.pvd')
+    file_sw = fd.File('tr'+name+'.pvd')
     etan.assign(h0 - H + b)
     un.assign(u0)
     qsolver.solve()
     file_sw.write(un, etan, qn)
     Unp1.assign(Un)
 
-    mesh.name = "meshT"
     V1DG = fd.VectorFunctionSpace(mesh,"DG",degree+1)
-    u_out = fd.Function(V1DG, name="u_out")
-    h_out = fd.Function(V2, name="h_out")
+    u_out = fd.Function(V1DG, name="u_outT")
+    h_out = fd.Function(V2, name="h_outT")
+
+    ht_array = np.array([])
 
     PETSc.Sys.Print('tmax', tmax, 'dt', dt)
     itcount = 0
@@ -551,15 +556,22 @@ def main(raw_args=None):
             tdump -= dumpt
         stepcount += 1
         itcount += nsolver1.snes.getLinearSolveIterations()
+
+        ht_array = np.append(ht_array, h0.dat.data[0])
+
     PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
                     "dt", dt, "tlblock", args.tlblock, "ref_level", args.ref_level, "dmax", args.dmax)
+    
+    if args.write == 2:
+        np.savetxt("trbdf2_ht.array", ht_array)
 
-    u_out.interpolate(u0)
-    h_out.interpolate(h0)
-    with fd.CheckpointFile("trbdf2_dt"+str(dt)+".h5", 'w') as afile:
-        afile.save_mesh(mesh)  
-        afile.save_function(u_out)
-        afile.save_function(h_out)
+
+    if args.write == 1:
+        u_out.interpolate(u0)
+        h_out.interpolate(h0)
+        with fd.CheckpointFile("convergence_dt"+str(dt)+".h5", 'a') as afile:
+            afile.save_function(u_out)
+            afile.save_function(h_out)
 
 if __name__ == "__main__":
     main()
