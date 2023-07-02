@@ -29,7 +29,6 @@ def main(raw_args=None, mesh=None, Gam=None):
     parser.add_argument('--time_scheme', type=int, default=1, help='Timestepping scheme. 0=Crank-Nicholson. 1=Implicit midpoint rule.')
     parser.add_argument('--write', type=int, default=0, help='Write files for convergence (dt varies). 0=None, 1=Convergence, 2=Vorticity')
     parser.add_argument('--array', type=int, default=0, help='Write array. 0=None, 1=height and velocity, 2=vorticity')
-    parser.add_argument('--iter', type=int, default=0, help='Write iteration count. Write number of steps and iterations per step')
 
     args = parser.parse_known_args(raw_args)
     args = args[0]
@@ -423,6 +422,7 @@ def main(raw_args=None, mesh=None, Gam=None):
 
         sparameters = {
             "snes_monitor": None,
+            "snes_type":"ksponly",
             "mat_type": "matfree",
             "ksp_type": "fgmres",
             "ksp_monitor_true_residual": None,
@@ -532,9 +532,6 @@ def main(raw_args=None, mesh=None, Gam=None):
     qt_array = np.array([])
     b_array = np.array([])
 
-    stepcount_array = np.array([])
-    itcount_array  = np.array([])
-
     PETSc.Sys.Print('tmax', tmax, 'dt', dt)
     itcount = 0
     stepcount = 0
@@ -561,31 +558,28 @@ def main(raw_args=None, mesh=None, Gam=None):
         stepcount += 1
         itcount += nsolver.snes.getLinearSolveIterations()
 
-        stepcount_array = np.append(stepcount_array, stepcount)
-        itcount_array = np.append(itcount_array, itcount)
-
         ht_array = np.append(ht_array, h0.dat.data[0])
         vt_array = np.append(vt_array, u0.dat.data[0])
         qt_array = np.append(qt_array, qn.dat.data[0])
         b_array = np.append(b_array, b.dat.data[0])
 
+
+        if args.array == 1:
+            if Gam == None:
+                np.savetxt("imR_ht"+str(dt)+"_"+str(dmax)+".array", ht_array)
+                np.savetxt("imR_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
+                np.savetxt("imR_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+            else:
+                np.savetxt("imR_ht"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", ht_array)
+                np.savetxt("imR_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
+                np.savetxt("imR_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+
+        elif args.array == 2:
+            np.savetxt("imR_vor"+str(dt)+"_"+str(dmax)+".array", qt_array)
+
     PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
                     "dt", dt, "tlblock", args.tlblock, "ref_level", args.ref_level, "dmax", args.dmax)
-
-
-    if args.array == 1:
-        if Gam == None:
-            np.savetxt("im_ht"+str(dt)+"_"+str(dmax)+".array", ht_array)
-            np.savetxt("im_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
-            np.savetxt("im_b"+str(dt)+"_"+str(dmax)+".array", b_array)
-        else:
-            np.savetxt("im_ht"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", ht_array)
-            np.savetxt("im_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
-            np.savetxt("im_b"+str(dt)+"_"+str(dmax)+".array", b_array)
-
-    elif args.array == 2:
-        np.savetxt("im_vor"+str(dt)+"_"+str(dmax)+".array", qt_array)
-
+    
 
     if args.write == 1:
         u_out.interpolate(u0)
@@ -607,10 +601,6 @@ def main(raw_args=None, mesh=None, Gam=None):
             with fd.CheckpointFile("gamma_dt"+str(G)+"_"+str(dmax)+".h5", 'a') as afile:
                 afile.save_function(u_out)
                 afile.save_function(h_out)
-
-    if args.iter == 0:
-        np.savetxt("im_stepcount_"+str(dt)+"_"+str(dmax)+".array", stepcount_array)  
-        np.savetxt("im_itcount_"+str(dt)+"_"+str(dmax)+".array", itcount_array)   
 
 if __name__ == "__main__":
     main()

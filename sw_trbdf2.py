@@ -1,3 +1,6 @@
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1" 
 import firedrake as fd
 #get command arguments
 from petsc4py import PETSc
@@ -6,7 +9,7 @@ import mg
 import argparse
 import numpy as np
 
-def main(raw_args=None, mesh=None):
+def main(raw_args=None, mesh=None, Gam=None):
     parser = argparse.ArgumentParser(description='Williamson 5 testcase for augmented Lagrangian solver.')
     parser.add_argument('--base_level', type=int, default=1, help='Base refinement level of icosahedral grid for MG solve. Default 1.')
     parser.add_argument('--ref_level', type=int, default=5, help='Refinement level of icosahedral grid. Default 5.')
@@ -24,8 +27,9 @@ def main(raw_args=None, mesh=None):
     parser.add_argument('--schurpc', type=str, default='mass', help='Preconditioner for the Schur complement. mass==mass inverse, helmholtz==helmholtz inverse * laplace * mass inverse. Default is mass')
     parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
     parser.add_argument('--time_scheme', type=int, default=0, help='Timestepping scheme. 0=TR-BDF2.')
-    parser.add_argument('--write', type=int, default=0, help='Write files. 0=None, 1=Convergence, 2=height array')
-    
+    parser.add_argument('--write', type=int, default=0, help='Write files for convergence (dt varies). 0=None, 1=Convergence(IM), 2=Vorticity, 3=Rosenbrock')
+    parser.add_argument('--array', type=int, default=0, help='Write array. 0=None, 1=height and velocity, 2=vorticity')
+
     args = parser.parse_known_args(raw_args)
     args = args[0]
 
@@ -163,7 +167,12 @@ def main(raw_args=None, mesh=None):
 
     if args.time_scheme == 0:
         "TR-BDF2"
-        gam = fd.Constant(2-(2**0.5))
+        if Gam == None:
+            gam = fd.Constant(2-(2**0.5))
+        elif Gam == -1:
+            gam = fd.Constant(2-(2**0.5))
+        else: 
+            gam = Gam
         half = fd.Constant(0.5)
         quo1 = fd.Constant(1/(gam*(2-gam)))
         quo2 = fd.Constant(1/(2-gam))
@@ -199,7 +208,7 @@ def main(raw_args=None, mesh=None):
     # U^{n+1} - U^n + dt*( N(U^{n+1}) + N(U^n) )/2 = 0.
 
     # BDF2
-    # y^{n+2} - 4/3*y^{n+1} +1/3*y^n - 2/3*dt*( f(y^{n+2})) = 0 
+    # y^{n+2} - 4/3*y^{n+1} + 1/3*y^n - 2/3*dt*( f(y^{n+2})) = 0 
 
     # TR-BDF2
     # y^{n+g} - y^n - g*dt/2*( f(y^{n+g}+f(y^{n}))) = 0   
@@ -438,7 +447,7 @@ def main(raw_args=None, mesh=None):
             "mg_levels_patch_pc_patch_save_operators": True,
             "mg_levels_patch_pc_patch_partition_of_unity": True,
             "mg_levels_patch_pc_patch_sub_mat_type": "seqdense",
-            "mg_levels_patch_pc_patch_construct_codim": 0,
+            "mg_levels_patch_pc_patch_construct_dim": 0,
             "mg_levels_patch_pc_patch_construct_type": "vanka",
             "mg_levels_patch_pc_patch_local_type": "additive",
             "mg_levels_patch_pc_patch_precompute_element_tensors": True,
@@ -530,8 +539,12 @@ def main(raw_args=None, mesh=None):
     V1DG = fd.VectorFunctionSpace(mesh,"DG",degree+1)
     u_out = fd.Function(V1DG, name="u_outT")
     h_out = fd.Function(V2, name="h_outT")
+    q_out = fd.Function(V0, name="q_outT")
 
     ht_array = np.array([])
+    vt_array = np.array([])
+    qt_array = np.array([])
+    b_array = np.array([])
 
     PETSc.Sys.Print('tmax', tmax, 'dt', dt)
     itcount = 0
@@ -558,18 +571,53 @@ def main(raw_args=None, mesh=None):
         itcount += nsolver1.snes.getLinearSolveIterations()
 
         ht_array = np.append(ht_array, h0.dat.data[0])
+        vt_array = np.append(vt_array, u0.dat.data[0])
+        qt_array = np.append(qt_array, qn.dat.data[0])
+        b_array = np.append(b_array, b.dat.data[0])
 
     PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
                     "dt", dt, "tlblock", args.tlblock, "ref_level", args.ref_level, "dmax", args.dmax)
     
-    if args.write == 2:
-        np.savetxt("trbdf2_ht.array", ht_array)
+
+    if args.array == 1:
+        if Gam == None:
+            np.savetxt("tr_ht"+str(dt)+"_"+str(dmax)+".array", ht_array)
+            np.savetxt("tr_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
+            np.savetxt("tr_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+        else:
+            np.savetxt("tr_ht"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", ht_array)
+            np.savetxt("tr_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
+            np.savetxt("tr_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+
+    elif args.array == 2:
+        np.savetxt("tr_vor"+str(dt)+"_"+str(dmax)+".array", qt_array)        
 
 
+    # To be used with sw_im as file is appended after
     if args.write == 1:
         u_out.interpolate(u0)
         h_out.interpolate(h0)
-        with fd.CheckpointFile("convergence_dt"+str(dt)+".h5", 'a') as afile:
+        with fd.CheckpointFile("convergence_dt"+str(dt)+"_"+str(dmax)+".h5", 'a') as afile:
+            afile.save_function(u_out)
+            afile.save_function(h_out)
+
+    elif args.write == 2:
+        q_out.interpolate(qn)
+        with fd.CheckpointFile("vorticity_dt"+str(dt)+"_"+str(dmax)+".h5", 'a') as afile:
+            afile.save_function(q_out)
+
+    elif args.write == 3:         
+        u_out.interpolate(u0)
+        h_out.interpolate(h0)
+        with fd.CheckpointFile("rosenbrock_dt"+str(dt)+"_"+str(dmax)+".h5", 'a') as afile:
+            afile.save_function(u_out)
+            afile.save_function(h_out)
+
+
+    if Gam != None:
+        u_out.interpolate(u0)
+        h_out.interpolate(h0)
+        with fd.CheckpointFile("gamma_dt"+str(Gam)+"_"+str(dmax)+".h5", 'w') as afile:
             afile.save_function(u_out)
             afile.save_function(h_out)
 
