@@ -17,7 +17,7 @@ sw_vort.py: Similar to sw_height but for vorticity \
 sw_vorticity.py: Similar to sw_convergence but for vorticity \
 
 Supportive File: \
-mg.py: Python file needed for multigrid method
+mg.py: Python file needed for multigrid method \
 sw_create_mesh.py: Create mesh to be used by different method so that firedrake.assemble works properly
 
 Redundant Files: \
