@@ -1,4 +1,5 @@
 # MSc-Project-Chin-Tan-2023 
+Last modified date: 11/07/2023
 
 Main Files: \
 sw_im.py: Crank-Nicholson and Implicit Midpoint methods \
@@ -11,7 +12,6 @@ sw_fourier.py: Perform Fourier analysis to better understand the damping effect 
 sw_gamma.py: Analyse the stablility and effectiveness of TR-BDF2 with different gamma value \
 sw_height: Plot the height of a point against time \
 sw_iteration.py: Record the number of steps and iterations per step done by a method \
-sw_rosenbrock.py: Similar to sw_convergence but for rosenbrock method \
 sw_spectral: Perform Hann Window on data \ 
 sw_vort.py: Similar to sw_height but for vorticity \
 sw_vorticity.py: Similar to sw_convergence but for vorticity \
@@ -23,3 +23,4 @@ sw_create_mesh.py: Create mesh to be used by different method so that firedrake.
 Redundant Files: \
 sw_test.py: File containing IM and TRBDF2 methods to compare their L2-norm directly \
 sw_conver.py: modified sw_convergence script to use sw_test.py 
+sw_rosenbrock.py: Similar to sw_convergence but for rosenbrock method \
