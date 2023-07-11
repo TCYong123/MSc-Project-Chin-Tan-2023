@@ -30,6 +30,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     parser.add_argument('--write', type=int, default=0, help='Write files for convergence (dt varies). 0=None, 1=Convergence, 2=Vorticity')
     parser.add_argument('--array', type=int, default=0, help='Write array. 0=None, 1=height and velocity, 2=vorticity')
     parser.add_argument('--iter', type=int, default=0, help='Write iteration count. Write number of steps and iterations per step')
+    parser.add_argument('--energy', type=int, default=0, help='Write normalized energy array')
 
     args = parser.parse_known_args(raw_args)
     args = args[0]
@@ -526,11 +527,14 @@ def main(raw_args=None, mesh=None, Gam=None):
     u_out = fd.Function(V1DG, name="u_outI")
     h_out = fd.Function(V2, name="h_outI")
     q_out = fd.Function(V0, name="q_outI")
+    b_out = fd.Function(V2, name="b_outI")
+    'u_mag = fd.Function(V2, name="u_magI")'
 
     ht_array = np.array([])
     vt_array = np.array([])
     qt_array = np.array([])
     b_array = np.array([])
+    'u_mag_array = np.array([])'
 
     stepcount_array = np.array([])
     itcount_array  = np.array([])
@@ -538,6 +542,12 @@ def main(raw_args=None, mesh=None, Gam=None):
     PETSc.Sys.Print('tmax', tmax, 'dt', dt)
     itcount = 0
     stepcount = 0
+
+    #energy
+    energy = 0.5*fd.inner(u0, u0)*H*dx + 0.5*g*(h0)*(h0)*dx + g*h0*b*dx
+    energy_0 = fd.assemble(energy)
+    energy_t = np.array([])
+
     while t < tmax + 0.5*dt:
         PETSc.Sys.Print(t)
         t += dt
@@ -564,10 +574,21 @@ def main(raw_args=None, mesh=None, Gam=None):
         stepcount_array = np.append(stepcount_array, stepcount)
         itcount_array = np.append(itcount_array, itcount)
 
-        ht_array = np.append(ht_array, h0.dat.data[0])
-        vt_array = np.append(vt_array, u0.dat.data[0])
-        qt_array = np.append(qt_array, qn.dat.data[0])
-        b_array = np.append(b_array, b.dat.data[0])
+        energy_t = np.append(energy_t, ((fd.assemble(energy) - energy_0)/energy_0))
+        if args.energy == 1:
+            np.savetxt("im_energy"+str(dt)+"_"+str(dmax)+".array", energy_t)
+
+        u_out.interpolate(u0)
+        h_out.interpolate(h0)
+        q_out.interpolate(qn)
+        b_out.interpolate(b)
+        "u_mag.project(fd.inner(u0,u0))" #Possible item to investigate
+
+        ht_array = np.append(ht_array, h_out.dat.data[0])
+        vt_array = np.append(vt_array, u_out.dat.data[0])
+        qt_array = np.append(qt_array, q_out.dat.data[0])
+        b_array = np.append(b_array, b_out.dat.data) #consider adding max (same output?)
+        "u_mag_array = np.append(u_mag_array, max(u_mag.dat.data)**0.5)"
 
     PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
                     "dt", dt, "tlblock", args.tlblock, "ref_level", args.ref_level, "dmax", args.dmax)
@@ -576,12 +597,14 @@ def main(raw_args=None, mesh=None, Gam=None):
     if args.array == 1:
         if Gam == None:
             np.savetxt("im_ht"+str(dt)+"_"+str(dmax)+".array", ht_array)
-            np.savetxt("im_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
-            np.savetxt("im_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+            # np.savetxt("im_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
+            # np.savetxt("im_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+            'np.savetxt("im_umag"+str(dt)+"_"+str(dmax)+".array", u_mag_array)'
         else:
             np.savetxt("im_ht"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", ht_array)
-            np.savetxt("im_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
-            np.savetxt("im_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+            # np.savetxt("im_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
+            # np.savetxt("im_b"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", b_array)
+            'np.savetxt("im_umag"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", u_mag_array)'
 
     elif args.array == 2:
         np.savetxt("im_vor"+str(dt)+"_"+str(dmax)+".array", qt_array)
@@ -608,7 +631,7 @@ def main(raw_args=None, mesh=None, Gam=None):
                 afile.save_function(u_out)
                 afile.save_function(h_out)
 
-    if args.iter == 0:
+    if args.iter == 1:
         np.savetxt("im_stepcount_"+str(dt)+"_"+str(dmax)+".array", stepcount_array)  
         np.savetxt("im_itcount_"+str(dt)+"_"+str(dmax)+".array", itcount_array)   
 

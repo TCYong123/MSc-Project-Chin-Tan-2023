@@ -29,6 +29,8 @@ def main(raw_args=None, mesh=None, Gam=None):
     parser.add_argument('--time_scheme', type=int, default=0, help='Timestepping scheme. 0=TR-BDF2.')
     parser.add_argument('--write', type=int, default=0, help='Write files for convergence (dt varies). 0=None, 1=Convergence(IM), 2=Vorticity, 3=Rosenbrock')
     parser.add_argument('--array', type=int, default=0, help='Write array. 0=None, 1=height, 2=vorticity')
+    parser.add_argument('--iter', type=int, default=0, help='Write iteration count. Write number of steps and iterations per step')
+    parser.add_argument('--energy', type=int, default=0, help='Write normalized energy array')
 
     args = parser.parse_known_args(raw_args)
     args = args[0]
@@ -538,18 +540,28 @@ def main(raw_args=None, mesh=None, Gam=None):
     Unp1.assign(Un)
 
     V1DG = fd.VectorFunctionSpace(mesh,"DG",degree+1)
-    u_out = fd.Function(V1DG, name="u_outR")
-    h_out = fd.Function(V2, name="h_outR")
-    q_out = fd.Function(V0, name="q_outR")
+    u_out = fd.Function(V1DG, name="u_outTR")
+    h_out = fd.Function(V2, name="h_outTR")
+    q_out = fd.Function(V0, name="q_outTR")
+    b_out = fd.Function(V2, name="b_outTR")
 
     ht_array = np.array([])
     vt_array = np.array([])
     qt_array = np.array([])
     b_array = np.array([])
 
+    stepcount_array = np.array([])
+    itcount_array  = np.array([])    
+
     PETSc.Sys.Print('tmax', tmax, 'dt', dt)
     itcount = 0
     stepcount = 0
+
+    #energy
+    energy = 0.5*fd.inner(u0, u0)*H*dx + 0.5*g*(h0)*(h0)*dx + g*h0*b*dx
+    energy_0 = fd.assemble(energy)
+    energy_t = np.array([])
+
     while t < tmax + 0.5*dt:
         PETSc.Sys.Print(t)
         t += dt
@@ -568,24 +580,41 @@ def main(raw_args=None, mesh=None, Gam=None):
             qsolver.solve()
             file_sw.write(un, etan, qn)
             tdump -= dumpt
+            
         stepcount += 1
         itcount += nsolver1.snes.getLinearSolveIterations()
+        stepcount_array = np.append(stepcount_array, stepcount)
+        itcount_array = np.append(itcount_array, itcount)
 
-        ht_array = np.append(ht_array, h0.dat.data[0])
-        vt_array = np.append(vt_array, u0.dat.data[0])
-        qt_array = np.append(qt_array, qn.dat.data[0])
-        b_array = np.append(b_array, b.dat.data[0])
+        stepcount += 1
+        itcount += nsolver2.snes.getLinearSolveIterations()
+        stepcount_array = np.append(stepcount_array, stepcount)
+        itcount_array = np.append(itcount_array, itcount)
+
+        energy_t = np.append(energy_t, ((fd.assemble(energy) - energy_0)/energy_0))
+        if args.energy == 1:
+            np.savetxt("trR_energy"+str(dt)+"_"+str(dmax)+".array", energy_t)
+
+        u_out.interpolate(u0)
+        h_out.interpolate(h0)
+        q_out.interpolate(qn)
+        b_out.interpolate(b)
+
+        ht_array = np.append(ht_array, h_out.dat.data[0])
+        vt_array = np.append(vt_array, u_out.dat.data[0])
+        qt_array = np.append(qt_array, q_out.dat.data[0])
+        b_array = np.append(b_array, b_out.dat.data[0])
 
 
         if args.array == 1:
             if Gam == None:
                 np.savetxt("trR_ht"+str(dt)+"_"+str(dmax)+".array", ht_array)
-                np.savetxt("trR_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
-                np.savetxt("trR_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+                # np.savetxt("trR_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
+                # np.savetxt("trR_b"+str(dt)+"_"+str(dmax)+".array", b_array)
             else:
                 np.savetxt("trR_ht"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", ht_array)
-                np.savetxt("trR_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
-                np.savetxt("trR_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+                # np.savetxt("trR_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
+                # np.savetxt("trR_b"+str(dt)+"_"+str(dmax)+".array", b_array)
 
         elif args.array == 2:
             np.savetxt("trR_vor"+str(dt)+"_"+str(dmax)+".array", qt_array) 
@@ -604,7 +633,7 @@ def main(raw_args=None, mesh=None, Gam=None):
 
     elif args.write == 2:
         q_out.interpolate(qn)
-        with fd.CheckpointFile("vorticity_dt"+str(dt)+"_"+str(dmax)+".h5", 'w') as afile:
+        with fd.CheckpointFile("vorticity_dt"+str(dt)+"_"+str(dmax)+".h5", 'a') as afile:
             afile.save_function(q_out)
 
     elif args.write == 3:         
@@ -621,6 +650,11 @@ def main(raw_args=None, mesh=None, Gam=None):
         with fd.CheckpointFile("gamma_dt"+str(Gam)+"_"+str(dmax)+".h5", 'w') as afile:
             afile.save_function(u_out)
             afile.save_function(h_out)
+
+    if args.iter == 1:
+        np.savetxt("trR_stepcount_"+str(dt)+"_"+str(dmax)+".array", stepcount_array)  
+        np.savetxt("trR_itcount_"+str(dt)+"_"+str(dmax)+".array", itcount_array)   
+
 
 if __name__ == "__main__":
     main()
