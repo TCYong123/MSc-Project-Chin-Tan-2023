@@ -26,8 +26,8 @@ def main(raw_args=None, mesh=None, Gam=None):
     parser.add_argument('--tlblock', type=str, default='mg', help='Solver for the velocity-velocity block. mg==Multigrid with patchPC, lu==direct solver with MUMPS, patch==just do a patch smoother. Default is mg')
     parser.add_argument('--schurpc', type=str, default='mass', help='Preconditioner for the Schur complement. mass==mass inverse, helmholtz==helmholtz inverse * laplace * mass inverse. Default is mass')
     parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
-    parser.add_argument('--time_scheme', type=int, default=0, help='Timestepping scheme. 0=TR-BDF2.')
-    parser.add_argument('--write', type=int, default=0, help='Write files for convergence (dt varies). 0=None, 1=Convergence(IM), 2=Vorticity, 3=Rosenbrock')
+    parser.add_argument('--time_scheme', type=int, default=1, help='Timestepping scheme. 0=Crank-Nicholson. 1=Implicit midpoint rule.')
+    parser.add_argument('--write', type=int, default=0, help='Write files for convergence (dt varies). 0=None, 1=Convergence, 2=Vorticity')
     parser.add_argument('--array', type=int, default=0, help='Write array. 0=None, 1=height and velocity, 2=vorticity')
     parser.add_argument('--iter', type=int, default=0, help='Write iteration count. Write number of steps and iterations per step')
     parser.add_argument('--energy', type=int, default=0, help='Write normalized energy array')
@@ -130,13 +130,10 @@ def main(raw_args=None, mesh=None, Gam=None):
 
     dx = fd.dx
 
-    Un = fd.Function(W, name="Un")
-    Ug = fd.Function(W, name="Ug")
-    Unp1 = fd.Function(W, name="Unp1")
-
+    Un = fd.Function(W)
+    Unp1 = fd.Function(W)
 
     u0, h0 = fd.split(Un)
-    ug, hg = fd.split(Ug)
     u1, h1 = fd.split(Unp1)
     n = fd.FacetNormal(mesh)
 
@@ -166,58 +163,54 @@ def main(raw_args=None, mesh=None, Gam=None):
                                 - uup('-')*h('-'))*dS)
 
 
+    if args.time_scheme == 1:
+        "implicit midpoint rule"
+        uh = 0.5*(u0 + u1)
+        hh = 0.5*(h0 + h1)
 
-    if args.time_scheme == 0:
-        "TR-BDF2"
-        if Gam == None:
-            gam = fd.Constant(2-(2**0.5))
-        elif Gam == -1:
-            gam = fd.Constant(2-(2**0.5))
-        else: 
-            gam = Gam
-        half = fd.Constant(0.5)
-        quo1 = fd.Constant(1/(gam*(2-gam)))
-        quo2 = fd.Constant(1/(2-gam))
-        con1 = fd.Constant((1-gam)**2*quo1)
-        con2 = fd.Constant((1-gam)*quo2)
+        testeqn = (
+            fd.inner(v, u1 - u0)*dx
+            + dT*u_op(v, uh, hh)
+            + phi*(h1 - h0)*dx
+            + dT*h_op(phi, uh, hh))
+        # the extra bit
+        eqn = testeqn \
+            + gamma*(fd.div(v)*(h1 - h0)*dx
+                    + dT*h_op(fd.div(v), uh, hh))
 
-        testeqn1 = (
-            fd.inner(v, ug - u0)*dx
-            + gam*half*dT*u_op(v, u0, h0)
-            + gam*half*dT*u_op(v, ug, hg)
-            + phi*(hg - h0)*dx
-            + gam*half*dT*h_op(phi, u0, h0)
-            + gam*half*dT*h_op(phi, ug, hg))
-
-        eqn1 = testeqn1 \
-            + 0    
-
-        testeqn2 = (
-            fd.inner(v, u1 - quo1*ug + con1*u0)*dx
-            + con2*dT*u_op(v, u1, h1)
-            + phi*(h1 - quo1*hg + con1*h0)*dx
-            + con2*dT*h_op(phi, u1, h1))         
         
-        eqn2 = testeqn2 \
-            + 0  
+    elif args.time_scheme == 0:
+        "Crank-Nicholson rule"
+        half = fd.Constant(0.5)
 
-
+        testeqn = (
+            fd.inner(v, u1 - u0)*dx
+            + half*dT*u_op(v, u0, h0)
+            + half*dT*u_op(v, u1, h1)
+            + phi*(h1 - h0)*dx
+            + half*dT*h_op(phi, u0, h0)
+            + half*dT*h_op(phi, u1, h1))
+        # the extra bit
+        eqn = testeqn \
+            + gamma*(fd.div(v)*(h1 - h0)*dx
+                    + half*dT*h_op(fd.div(v), u0, h0)
+                    + half*dT*h_op(fd.div(v), u1, h1))
     else:
         raise NotImplementedError
-
+        
+    # U_t + N(U) = 0
+    # IMPLICIT MIDPOINT
+    # U^{n+1} - U^n + dt*N( (U^{n+1}+U^n)/2 ) = 0.
 
     # TRAPEZOIDAL RULE
     # U^{n+1} - U^n + dt*( N(U^{n+1}) + N(U^n) )/2 = 0.
-
-    # BDF2
-    # y^{n+2} - 4/3*y^{n+1} + 1/3*y^n - 2/3*dt*( f(y^{n+2})) = 0 
-
-    # TR-BDF2
-    # y^{n+g} - y^n - g*dt/2*( f(y^{n+g}+f(y^{n}))) = 0   
-    # y^{n+1} - 1/(g*(2-g))*y^{n+g} - (1-g)/(2-g)*dt*f(y^{n+1}) + (1-g)^2/(g*(2-g))*y^n = 0
-
-
-
+        
+    # Newton's method
+    # f(x) = 0, f:R^M -> R^M
+    # [Df(x)]_{i,j} = df_i/dx_j
+    # x^0, x^1, ...
+    # Df(x^k).xp = -f(x^k)
+    # x^{k+1} = x^k + xp.
 
     class HelmholtzPC(fd.PCBase):
         def initialize(self, pc):
@@ -431,6 +424,7 @@ def main(raw_args=None, mesh=None, Gam=None):
 
         sparameters = {
             "snes_monitor": None,
+            "snes_ksp_ew": None,
             "mat_type": "matfree",
             "ksp_type": "fgmres",
             "ksp_monitor_true_residual": None,
@@ -467,18 +461,11 @@ def main(raw_args=None, mesh=None, Gam=None):
     dT.assign(dt)
     t = 0.
 
-    nprob1 = fd.NonlinearVariationalProblem(eqn1, Ug)
+    nprob = fd.NonlinearVariationalProblem(eqn, Unp1)
     ctx = {"mu": gamma*2/g/dt}
-    nsolver1 = fd.NonlinearVariationalSolver(nprob1,
+    nsolver = fd.NonlinearVariationalSolver(nprob,
                                             solver_parameters=sparameters,
                                             appctx=ctx)
-
-    nprob2 = fd.NonlinearVariationalProblem(eqn2, Unp1)
-    ctx = {"mu": gamma*2/g/dt}
-    nsolver2 = fd.NonlinearVariationalSolver(nprob2,
-                                            solver_parameters=sparameters,
-                                            appctx=ctx)
-
     vtransfer = mg.ManifoldTransfer()
     tm = fd.TransferManager()
     transfers = {
@@ -488,8 +475,7 @@ def main(raw_args=None, mesh=None, Gam=None):
                         vtransfer.inject)
     }
     transfermanager = fd.TransferManager(native_transfers=transfers)
-    nsolver1.set_transfer_manager(transfermanager)
-    nsolver2.set_transfer_manager(transfermanager)
+    nsolver.set_transfer_manager(transfermanager)
 
     dmax = args.dmax
     hmax = 24*dmax
@@ -533,7 +519,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     qsolver = fd.LinearVariationalSolver(vprob,
                                         solver_parameters=qparams)
 
-    file_sw = fd.File('tr'+name+'.pvd')
+    file_sw = fd.File('imE'+name+'.pvd')
     etan.assign(h0 - H + b)
     un.assign(u0)
     qsolver.solve()
@@ -541,10 +527,10 @@ def main(raw_args=None, mesh=None, Gam=None):
     Unp1.assign(Un)
 
     V1DG = fd.VectorFunctionSpace(mesh,"DG",degree+1)
-    u_out = fd.Function(V1DG, name="u_outT")
-    h_out = fd.Function(V2, name="h_outT")
-    q_out = fd.Function(V0, name="q_outT")
-    b_out = fd.Function(V2, name="b_outT")
+    u_out = fd.Function(V1DG, name="u_outIE")
+    h_out = fd.Function(V2, name="h_outIE")
+    q_out = fd.Function(V0, name="q_outIE")
+    b_out = fd.Function(V2, name="b_outIE")
 
     ht_array = np.array([])
     vt_array = np.array([])
@@ -568,12 +554,14 @@ def main(raw_args=None, mesh=None, Gam=None):
         t += dt
         tdump += dt
 
-        nsolver1.solve()
-        nsolver2.solve()
-        Un.assign(Unp1)
-        res = fd.assemble(testeqn1+testeqn2)
+        nsolver.solve()
+        res = fd.assemble(testeqn)
         PETSc.Sys.Print(res.dat.data[0].max(), res.dat.data[0].min(),
-            res.dat.data[1].max(), res.dat.data[1].min())          
+            res.dat.data[1].max(), res.dat.data[1].min())
+        Un.assign(Unp1)
+        res = fd.assemble(testeqn)
+        PETSc.Sys.Print(res.dat.data[0].max(), res.dat.data[0].min(),
+            res.dat.data[1].max(), res.dat.data[1].min())
         
         if tdump > dumpt - dt*0.5:
             etan.assign(h0 - H + b)
@@ -581,20 +569,15 @@ def main(raw_args=None, mesh=None, Gam=None):
             qsolver.solve()
             file_sw.write(un, etan, qn)
             tdump -= dumpt
-
         stepcount += 1
-        itcount += nsolver1.snes.getLinearSolveIterations()
+        itcount += nsolver.snes.getLinearSolveIterations()
+
         stepcount_array = np.append(stepcount_array, stepcount)
         itcount_array = np.append(itcount_array, itcount)
 
-        stepcount += 1
-        itcount += nsolver2.snes.getLinearSolveIterations()
-        stepcount_array = np.append(stepcount_array, stepcount)
-        itcount_array = np.append(itcount_array, itcount)
-        
         energy_t = np.append(energy_t, ((fd.assemble(energy) - energy_0)/energy_0))
         if args.energy == 1:
-            np.savetxt("tr_energy"+str(dt)+"_"+str(dmax)+".array", energy_t)
+            np.savetxt("imE_energy"+str(dt)+"_"+str(dmax)+".array", energy_t)
 
         u_out.interpolate(u0)
         h_out.interpolate(h0)
@@ -606,25 +589,24 @@ def main(raw_args=None, mesh=None, Gam=None):
         qt_array = np.append(qt_array, q_out.dat.data[0])
         b_array = np.append(b_array, b_out.dat.data[0])
 
+        if args.array == 1:
+            if Gam == None:
+                np.savetxt("imE_ht"+str(dt)+"_"+str(dmax)+".array", ht_array)
+                # np.savetxt("imE_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
+                # np.savetxt("imE_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+            else:
+                np.savetxt("imE_ht"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", ht_array)
+                # np.savetxt("imE_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
+                # np.savetxt("imE_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+
+        elif args.array == 2:
+            np.savetxt("imE_vor"+str(dt)+"_"+str(dmax)+".array", qt_array)
+
+
     PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
                     "dt", dt, "tlblock", args.tlblock, "ref_level", args.ref_level, "dmax", args.dmax)
-    
-
-    if args.array == 1:
-        if Gam == None:
-            np.savetxt("tr_ht"+str(dt)+"_"+str(dmax)+".array", ht_array)
-            # np.savetxt("tr_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
-            # np.savetxt("tr_b"+str(dt)+"_"+str(dmax)+".array", b_array)
-        else:
-            np.savetxt("tr_ht"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", ht_array)
-            # np.savetxt("tr_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
-            # np.savetxt("tr_b"+str(dt)+"_"+str(dmax)+".array", b_array)
-
-    elif args.array == 2:
-        np.savetxt("tr_vor"+str(dt)+"_"+str(dmax)+".array", qt_array)        
 
 
-    # To be used with sw_im as file is appended after
     if args.write == 1:
         u_out.interpolate(u0)
         h_out.interpolate(h0)
@@ -637,25 +619,18 @@ def main(raw_args=None, mesh=None, Gam=None):
         with fd.CheckpointFile("vorticity_dt"+str(dt)+"_"+str(dmax)+".h5", 'a') as afile:
             afile.save_function(q_out)
 
-    elif args.write == 3:         
-        u_out.interpolate(u0)
-        h_out.interpolate(h0)
-        with fd.CheckpointFile("rosenbrock_dt"+str(dt)+"_"+str(dmax)+".h5", 'a') as afile:
-            afile.save_function(u_out)
-            afile.save_function(h_out)
-
 
     if Gam != None:
         u_out.interpolate(u0)
         h_out.interpolate(h0)
-        with fd.CheckpointFile("gamma_dt"+str(Gam)+"_"+str(dmax)+".h5", 'w') as afile:
-            afile.save_function(u_out)
-            afile.save_function(h_out)
+        for G in Gam:
+            with fd.CheckpointFile("gamma_dt"+str(G)+"_"+str(dmax)+".h5", 'a') as afile:
+                afile.save_function(u_out)
+                afile.save_function(h_out)
 
     if args.iter == 1:
-        np.savetxt("tr_stepcount_"+str(dt)+"_"+str(dmax)+".array", stepcount_array)  
-        np.savetxt("tr_itcount_"+str(dt)+"_"+str(dmax)+".array", itcount_array)   
-
+        np.savetxt("imE_stepcount_"+str(dt)+"_"+str(dmax)+".array", stepcount_array)  
+        np.savetxt("imE_itcount_"+str(dt)+"_"+str(dmax)+".array", itcount_array)   
 
 if __name__ == "__main__":
     main()

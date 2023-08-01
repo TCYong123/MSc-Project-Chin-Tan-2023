@@ -525,8 +525,10 @@ def main(raw_args=None, mesh=None, Gam=None):
     q = fd.TrialFunction(V0)
     p = fd.TestFunction(V0)
 
-    qn = fd.Function(V0, name="Relative Vorticity")
-    veqn = q*p*dx + fd.inner(perp(fd.grad(p)), un)*dx
+    # qn = fd.Function(V0, name="Relative Vorticity")
+    # veqn = q*p*dx + fd.inner(perp(fd.grad(p)), un)*dx
+    qn = fd.Function(V0, name="Potential Vorticity")
+    veqn = q*h0*p*dx + fd.inner(perp(fd.grad(p)), un)*dx - p*f*dx
     vprob = fd.LinearVariationalProblem(fd.lhs(veqn), fd.rhs(veqn), qn)
     qparams = {'ksp_type':'cg'}
     qsolver = fd.LinearVariationalSolver(vprob,

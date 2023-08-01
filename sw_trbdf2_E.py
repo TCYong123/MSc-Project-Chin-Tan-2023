@@ -28,7 +28,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
     parser.add_argument('--time_scheme', type=int, default=0, help='Timestepping scheme. 0=TR-BDF2.')
     parser.add_argument('--write', type=int, default=0, help='Write files for convergence (dt varies). 0=None, 1=Convergence(IM), 2=Vorticity, 3=Rosenbrock')
-    parser.add_argument('--array', type=int, default=0, help='Write array. 0=None, 1=height and velocity, 2=vorticity')
+    parser.add_argument('--array', type=int, default=0, help='Write array. 0=None, 1=height, 2=vorticity')
     parser.add_argument('--iter', type=int, default=0, help='Write iteration count. Write number of steps and iterations per step')
     parser.add_argument('--energy', type=int, default=0, help='Write normalized energy array')
 
@@ -431,6 +431,7 @@ def main(raw_args=None, mesh=None, Gam=None):
 
         sparameters = {
             "snes_monitor": None,
+            "snes_ksp_ew": None,
             "mat_type": "matfree",
             "ksp_type": "fgmres",
             "ksp_monitor_true_residual": None,
@@ -533,7 +534,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     qsolver = fd.LinearVariationalSolver(vprob,
                                         solver_parameters=qparams)
 
-    file_sw = fd.File('tr'+name+'.pvd')
+    file_sw = fd.File('trE'+name+'.pvd')
     etan.assign(h0 - H + b)
     un.assign(u0)
     qsolver.solve()
@@ -541,10 +542,10 @@ def main(raw_args=None, mesh=None, Gam=None):
     Unp1.assign(Un)
 
     V1DG = fd.VectorFunctionSpace(mesh,"DG",degree+1)
-    u_out = fd.Function(V1DG, name="u_outT")
-    h_out = fd.Function(V2, name="h_outT")
-    q_out = fd.Function(V0, name="q_outT")
-    b_out = fd.Function(V2, name="b_outT")
+    u_out = fd.Function(V1DG, name="u_outTE")
+    h_out = fd.Function(V2, name="h_outTE")
+    q_out = fd.Function(V0, name="q_outTE")
+    b_out = fd.Function(V2, name="b_outTE")
 
     ht_array = np.array([])
     vt_array = np.array([])
@@ -552,7 +553,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     b_array = np.array([])
 
     stepcount_array = np.array([])
-    itcount_array  = np.array([])
+    itcount_array  = np.array([])    
 
     PETSc.Sys.Print('tmax', tmax, 'dt', dt)
     itcount = 0
@@ -581,7 +582,7 @@ def main(raw_args=None, mesh=None, Gam=None):
             qsolver.solve()
             file_sw.write(un, etan, qn)
             tdump -= dumpt
-
+            
         stepcount += 1
         itcount += nsolver1.snes.getLinearSolveIterations()
         stepcount_array = np.append(stepcount_array, stepcount)
@@ -591,10 +592,10 @@ def main(raw_args=None, mesh=None, Gam=None):
         itcount += nsolver2.snes.getLinearSolveIterations()
         stepcount_array = np.append(stepcount_array, stepcount)
         itcount_array = np.append(itcount_array, itcount)
-        
+
         energy_t = np.append(energy_t, ((fd.assemble(energy) - energy_0)/energy_0))
         if args.energy == 1:
-            np.savetxt("tr_energy"+str(dt)+"_"+str(dmax)+".array", energy_t)
+            np.savetxt("trE_energy"+str(dt)+"_"+str(dmax)+".array", energy_t)
 
         u_out.interpolate(u0)
         h_out.interpolate(h0)
@@ -606,23 +607,23 @@ def main(raw_args=None, mesh=None, Gam=None):
         qt_array = np.append(qt_array, q_out.dat.data[0])
         b_array = np.append(b_array, b_out.dat.data[0])
 
+
+        if args.array == 1:
+            if Gam == None:
+                np.savetxt("trE_ht"+str(dt)+"_"+str(dmax)+".array", ht_array)
+                # np.savetxt("trE_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
+                # np.savetxt("trE_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+            else:
+                np.savetxt("trE_ht"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", ht_array)
+                # np.savetxt("trE_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
+                # np.savetxt("trE_b"+str(dt)+"_"+str(dmax)+".array", b_array)
+
+        elif args.array == 2:
+            np.savetxt("trE_vor"+str(dt)+"_"+str(dmax)+".array", qt_array) 
+
     PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
                     "dt", dt, "tlblock", args.tlblock, "ref_level", args.ref_level, "dmax", args.dmax)
     
-
-    if args.array == 1:
-        if Gam == None:
-            np.savetxt("tr_ht"+str(dt)+"_"+str(dmax)+".array", ht_array)
-            # np.savetxt("tr_vt"+str(dt)+"_"+str(dmax)+".array", vt_array)
-            # np.savetxt("tr_b"+str(dt)+"_"+str(dmax)+".array", b_array)
-        else:
-            np.savetxt("tr_ht"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", ht_array)
-            # np.savetxt("tr_vt"+str(dt)+"_"+str(dmax)+"_"+str(Gam)+".array", vt_array)
-            # np.savetxt("tr_b"+str(dt)+"_"+str(dmax)+".array", b_array)
-
-    elif args.array == 2:
-        np.savetxt("tr_vor"+str(dt)+"_"+str(dmax)+".array", qt_array)        
-
 
     # To be used with sw_im as file is appended after
     if args.write == 1:
@@ -640,7 +641,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     elif args.write == 3:         
         u_out.interpolate(u0)
         h_out.interpolate(h0)
-        with fd.CheckpointFile("rosenbrock_dt"+str(dt)+"_"+str(dmax)+".h5", 'a') as afile:
+        with fd.CheckpointFile("rosenbrock_dt"+str(dt)+"_"+str(dmax)+".h5", 'w') as afile:
             afile.save_function(u_out)
             afile.save_function(h_out)
 
@@ -653,8 +654,8 @@ def main(raw_args=None, mesh=None, Gam=None):
             afile.save_function(h_out)
 
     if args.iter == 1:
-        np.savetxt("tr_stepcount_"+str(dt)+"_"+str(dmax)+".array", stepcount_array)  
-        np.savetxt("tr_itcount_"+str(dt)+"_"+str(dmax)+".array", itcount_array)   
+        np.savetxt("trE_stepcount_"+str(dt)+"_"+str(dmax)+".array", stepcount_array)  
+        np.savetxt("trE_itcount_"+str(dt)+"_"+str(dmax)+".array", itcount_array)   
 
 
 if __name__ == "__main__":
