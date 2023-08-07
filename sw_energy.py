@@ -83,7 +83,7 @@ if args.iter:
     plt.title("Total number of Newton's Solve required for each methods")
     plt.xlabel('Stepcount')
     plt.ylabel('Iteration')          
-    plt.show()
+    plt.savefig('iteration_'+str(T)+'_'+str(dmax)+'.png')
 
 
 
