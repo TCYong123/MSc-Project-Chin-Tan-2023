@@ -30,10 +30,18 @@ UTE = np.array([])
 HTE = np.array([])
 dmax = args.dmax
 
-dt = [2.0**(-n) for n in range(0,8)]
+mesh = sw_create_mesh.main(["--ref_level=2", "--dmax="+str(dmax)])
+
+sw_im.main(["--write=1", "--ref_level=2", "--dmax="+str(dmax), "--dt=0.0009765625"], mesh)
+with fd.CheckpointFile("convergence_dt3.515625_"+str(dmax)+".h5", 'r') as afile:
+    mesh = afile.load_mesh("Mesh")
+    u_ref = afile.load_function(mesh, "u_outI")
+    h_ref = afile.load_function(mesh, "h_outI")
+
+
+dt = [2.0**(-n) for n in range(0,9)]
 for i, T in enumerate(dt):
     if args.w:
-        mesh = sw_create_mesh.main(["--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)])
         sw_im.main(["--write=1", "--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
         sw_trbdf2_R.main(["--write=1", "--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
         sw_im_R.main(["--write=1", "--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
@@ -56,31 +64,24 @@ for i, T in enumerate(dt):
         uTE = afile.load_function(mesh, "u_outTE")
         hTE = afile.load_function(mesh, "h_outTE") 
 
-    u_error = (fd.sqrt(fd.assemble(fd.dot(uT - uI, uT - uI) * fd.dx))) 
-    h_error = (fd.sqrt(fd.assemble(fd.dot(hT - hI, hT - hI) * fd.dx)))
-    uIR_error = (fd.sqrt(fd.assemble(fd.dot(uIR - uI, uIR - uI) * fd.dx))) 
-    hIR_error = (fd.sqrt(fd.assemble(fd.dot(hIR - hI, hIR - hI) * fd.dx)))
-    uTR_error = (fd.sqrt(fd.assemble(fd.dot(uTR - uI, uTR - uI) * fd.dx))) 
-    hTR_error = (fd.sqrt(fd.assemble(fd.dot(hTR - hI, hTR - hI) * fd.dx)))
-    uIE_error = (fd.sqrt(fd.assemble(fd.dot(uIE - uI, uIE - uI) * fd.dx))) 
-    hIE_error = (fd.sqrt(fd.assemble(fd.dot(hIE - hI, hIE - hI) * fd.dx)))    
-    uTE_error = (fd.sqrt(fd.assemble(fd.dot(uTE - uI, uTE - uI) * fd.dx))) 
-    hTE_error = (fd.sqrt(fd.assemble(fd.dot(hTE - hI, hTE - hI) * fd.dx)))  
 
-    if i == 1.0:
-        u_ref = u_error
-        h_ref = h_error
-    #     uIR_ref = uIR_error
-    #     hIR_ref = hIR_error
-    #     uTR_ref = uTR_error
-    #     hTR_ref = hTR_error
-    #     uIE_ref = uIE_error
-    #     hIE_ref = hIE_error
-    #     uTE_ref = uTE_error
-    #     hTE_ref = hTE_error        
+    uI_error = (fd.sqrt(fd.assemble(fd.dot(uI - u_ref, uT - u_ref) * fd.dx))) 
+    hI_error = (fd.sqrt(fd.assemble(fd.dot(hI - h_ref, hT - h_ref) * fd.dx)))
+    uT_error = (fd.sqrt(fd.assemble(fd.dot(uT - u_ref, uT - u_ref) * fd.dx))) 
+    hT_error = (fd.sqrt(fd.assemble(fd.dot(hT - h_ref, hT - h_ref) * fd.dx)))
+    uIR_error = (fd.sqrt(fd.assemble(fd.dot(uIR - u_ref, uIR - u_ref) * fd.dx))) 
+    hIR_error = (fd.sqrt(fd.assemble(fd.dot(hIR - h_ref, hIR - h_ref) * fd.dx)))
+    uTR_error = (fd.sqrt(fd.assemble(fd.dot(uTR - u_ref, uTR - u_ref) * fd.dx))) 
+    hTR_error = (fd.sqrt(fd.assemble(fd.dot(hTR - h_ref, hTR - h_ref) * fd.dx)))
+    uIE_error = (fd.sqrt(fd.assemble(fd.dot(uIE - u_ref, uIE - u_ref) * fd.dx))) 
+    hIE_error = (fd.sqrt(fd.assemble(fd.dot(hIE - h_ref, hIE - h_ref) * fd.dx)))    
+    uTE_error = (fd.sqrt(fd.assemble(fd.dot(uTE - u_ref, uTE - u_ref) * fd.dx))) 
+    hTE_error = (fd.sqrt(fd.assemble(fd.dot(hTE - h_ref, hTE - h_ref) * fd.dx)))       
 
-    U = np.append(U, u_error)
-    H = np.append(H, h_error)
+    UI = np.append(U, uI_error)
+    HI = np.append(H, hI_error)
+    UT = np.append(U, uT_error)
+    HT = np.append(H, hT_error)
     UIR = np.append(UIR, uIR_error)
     HIR = np.append(HIR, hIR_error)
     UTR = np.append(UTR, uTR_error)
@@ -93,8 +94,10 @@ for i, T in enumerate(dt):
     # print(f"L2 error at dt: {T} is u: {U[i]}, h: {H[i]}")
 
 plt.figure()
-plt.plot(dt, U, '-x', label='velocity TR-BDF2')
-plt.plot(dt, H, '-x', label='height TR-BDF2')
+plt.plot(dt, UI, '-x', label='velocity IM')
+plt.plot(dt, HI, '-x', label='height IM')
+plt.plot(dt, UT, '-x', label='velocity TR-BDF2')
+plt.plot(dt, HT, '-x', label='height TR-BDF2')
 plt.plot(dt, UIR, '-x', label='velocity IM(R)')
 plt.plot(dt, HIR, '-x', label='height IM(R)')
 plt.plot(dt, UTR, '-x', label='velocity TR-BDF2(R)')
@@ -107,8 +110,7 @@ plt.xscale('log', base=2)
 plt.yscale('log')
 plt.legend()
 plt.xlabel('time step, dt')
-plt.ylabel('Normalized difference')
-plt.title("Comparison of the L2 difference between IM and other methods")
-plt.show()
-plt.savefig('convergence_'+str(dmax)+'.png')
+plt.ylabel('Relative L2 error')
+plt.title("Comparison of the L2 difference of the methods")
+plt.savefig('convergence_new_'+str(dmax)+'.png')
         
