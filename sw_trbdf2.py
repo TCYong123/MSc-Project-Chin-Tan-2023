@@ -595,6 +595,8 @@ def main(raw_args=None, mesh=None, Gam=None):
         energy_t = np.append(energy_t, ((fd.assemble(energy) - energy_0)/energy_0))
         if args.energy == 1:
             np.savetxt("tr_energy"+str(dt)+"_"+str(dmax)+".array", energy_t)
+        if args.energy == 2:
+            np.savetxt("tr_energy"+str(nrefs)+str(dt)+"_"+str(dmax)+".array", energy_t)
 
         u_out.interpolate(u0)
         h_out.interpolate(h0)
