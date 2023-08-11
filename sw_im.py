@@ -457,6 +457,9 @@ def main(raw_args=None, mesh=None, Gam=None):
         }
         
     dt = 60*60*args.dt
+    if args.write == 11 or 21:
+        dt = 3.515625
+
     dT.assign(dt)
     t = 0.
 
@@ -532,6 +535,11 @@ def main(raw_args=None, mesh=None, Gam=None):
     b_out = fd.Function(V2, name="b_outI")
     'u_mag = fd.Function(V2, name="u_magI")'
 
+    u_out_ref = fd.Function(V1DG, name="u_outref")
+    h_out_ref = fd.Function(V2, name="h_outref")
+    q_out_ref = fd.Function(V0, name="q_outref")
+    b_out_ref = fd.Function(V2, name="b_outref")    
+
     ht_array = np.array([])
     vt_array = np.array([])
     qt_array = np.array([])
@@ -586,6 +594,12 @@ def main(raw_args=None, mesh=None, Gam=None):
         h_out.interpolate(h0)
         q_out.interpolate(qn)
         b_out.interpolate(b)
+
+        u_out_ref.interpolate(u0)
+        h_out_ref.interpolate(h0)
+        q_out_ref.interpolate(qn)
+        b_out_ref.interpolate(b)
+
         "u_mag.project(fd.inner(u0,u0))" #Possible item to investigate
 
         ht_array = np.append(ht_array, h_out.dat.data[0])
@@ -614,28 +628,30 @@ def main(raw_args=None, mesh=None, Gam=None):
         np.savetxt("im_vor"+str(dt)+"_"+str(dmax)+".array", qt_array)
 
 
-    if args.write == 1:
-        u_out.interpolate(u0)
-        h_out.interpolate(h0)
+    if args.write == 11:
+        u_out_ref.interpolate(u0)
+        h_out_ref.interpolate(h0)
+        dt = args.dt
         with fd.CheckpointFile("convergence_dt"+str(dt)+"_"+str(dmax)+".h5", 'w') as afile:
-            afile.save_function(u_out)
-            afile.save_function(h_out)
+            afile.save_function(u_out_ref)
+            afile.save_function(h_out_ref)
 
-    elif args.write == 11:
+    elif args.write == 1:
         u_out.interpolate(u0)
         h_out.interpolate(h0)
         with fd.CheckpointFile("convergence_dt"+str(dt)+"_"+str(dmax)+".h5", 'a') as afile:
             afile.save_function(u_out)
             afile.save_function(h_out)            
 
-    elif args.write == 2:
-        u_out.interpolate(u0)
-        h_out.interpolate(h0)
-        with fd.CheckpointFile("convergence_ds"+str(dt)+"_"+str(nrefs)+"_"+str(dmax)+".h5", 'w') as afile:
-            afile.save_function(u_out)
-            afile.save_function(h_out)
-
     elif args.write == 21:
+        u_out_ref.interpolate(u0)
+        h_out_ref.interpolate(h0)
+        dt = args.dt
+        with fd.CheckpointFile("convergence_ds"+str(dt)+"_"+str(nrefs)+"_"+str(dmax)+".h5", 'w') as afile:
+            afile.save_function(u_out_ref)
+            afile.save_function(h_out_ref)
+
+    elif args.write == 2:
         u_out.interpolate(u0)
         h_out.interpolate(h0)
         with fd.CheckpointFile("convergence_ds"+str(dt)+"_"+str(nrefs)+"_"+str(dmax)+".h5", 'a') as afile:

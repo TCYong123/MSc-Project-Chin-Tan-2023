@@ -16,6 +16,7 @@ import numpy as np
 parser = argparse.ArgumentParser()
 parser.add_argument('--w', type=bool, default=False) #Toggle writing of files
 parser.add_argument('--dmax', type=float, default=15.0)
+parser.add_argument('--ref', type=int, default=5)
 args = parser.parse_known_args()
 args = args[0]
 U = np.array([])
@@ -30,21 +31,18 @@ UTE = np.array([])
 HTE = np.array([])
 dmax = args.dmax
 
-ref_level = [1, 2, 3, 4, 5]
+if args.w:
+    ref_level = [args.ref]
+else:    
+    ref_level = [1, 2, 3, 4, 5]
+
 T = 1.0
 
 for ref in ref_level:
     if args.w:
         Mesh = sw_create_mesh.main(["--ref_level="+str(ref), "--dmax="+str(dmax)])
-        sw_im.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt=0.0009765625"], Mesh)
-
-    with fd.CheckpointFile("convergence_ds3.515625_"+str(ref)+"_"+str(dmax)+".h5", 'r') as afile:
-        mesh = afile.load_mesh("Mesh")
-        u_ref = afile.load_function(mesh, "u_outI")
-        h_ref = afile.load_function(mesh, "h_outI")
-
-    if args.w:
-        sw_im.main(["--write=21", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_im.main(["--write=21", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt=0.0009765625"], Mesh)
+        sw_im.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
         sw_trbdf2_R.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
         sw_im_R.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
         sw_trbdf2.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
@@ -53,6 +51,8 @@ for ref in ref_level:
 
     with fd.CheckpointFile("convergence_ds"+str(T*60*60)+"_"+str(ref)+"_"+str(dmax)+".h5", 'r') as afile:
         mesh = afile.load_mesh("Mesh")
+        u_ref = afile.load_function(mesh, "u_outref")
+        h_ref = afile.load_function(mesh, "h_outref") 
         uI = afile.load_function(mesh, "u_outI")
         hI = afile.load_function(mesh, "h_outI")
         uT = afile.load_function(mesh, "u_outT")
@@ -67,8 +67,8 @@ for ref in ref_level:
         hTE = afile.load_function(mesh, "h_outTE") 
 
 
-    uI_error = (fd.sqrt(fd.assemble(fd.dot(uI - u_ref, uT - u_ref) * fd.dx))) 
-    hI_error = (fd.sqrt(fd.assemble(fd.dot(hI - h_ref, hT - h_ref) * fd.dx)))
+    uI_error = (fd.sqrt(fd.assemble(fd.dot(uI - u_ref, uI - u_ref) * fd.dx))) 
+    hI_error = (fd.sqrt(fd.assemble(fd.dot(hI - h_ref, hI - h_ref) * fd.dx)))
     uT_error = (fd.sqrt(fd.assemble(fd.dot(uT - u_ref, uT - u_ref) * fd.dx))) 
     hT_error = (fd.sqrt(fd.assemble(fd.dot(hT - h_ref, hT - h_ref) * fd.dx)))
     uIR_error = (fd.sqrt(fd.assemble(fd.dot(uIR - u_ref, uIR - u_ref) * fd.dx))) 
