@@ -30,27 +30,28 @@ UTE = np.array([])
 HTE = np.array([])
 dmax = args.dmax
 
-if args.w:
-    Mesh = sw_create_mesh.main(["--ref_level=3", "--dmax="+str(dmax)])
-    sw_im.main(["--write=1", "--ref_level=3", "--dmax="+str(dmax), "--dt=0.0009765625"], Mesh)
-    
-with fd.CheckpointFile("convergence_dt3.515625_"+str(dmax)+".h5", 'r') as afile:
-    mesh = afile.load_mesh("Mesh")
-    u_ref = afile.load_function(mesh, "u_outI")
-    h_ref = afile.load_function(mesh, "h_outI")
+ref_level = [1, 2, 3, 4, 5]
+T = 1.0
 
-
-dt = [2.0**(-n) for n in range(0,10)]
-for i, T in enumerate(dt):
+for ref in ref_level:
     if args.w:
-        sw_im.main(["--write=11", "--ref_level=3", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
-        sw_trbdf2_R.main(["--write=1", "--ref_level=3", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
-        sw_im_R.main(["--write=1", "--ref_level=3", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
-        sw_trbdf2.main(["--write=1", "--ref_level=3", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
-        sw_im_E.main(["--write=1", "--ref_level=3", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
-        sw_trbdf2_E.main(["--write=1", "--ref_level=3", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        Mesh = sw_create_mesh.main(["--ref_level="+str(ref), "--dmax="+str(dmax)])
+        sw_im.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt=0.0009765625"], Mesh)
 
-    with fd.CheckpointFile("convergence_dt"+str(T*60*60)+"_"+str(dmax)+".h5", 'r') as afile:
+    with fd.CheckpointFile("convergence_ds3.515625_"+str(ref)+"_"+str(dmax)+".h5", 'r') as afile:
+        mesh = afile.load_mesh("Mesh")
+        u_ref = afile.load_function(mesh, "u_outI")
+        h_ref = afile.load_function(mesh, "h_outI")
+
+    if args.w:
+        sw_im.main(["--write=21", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_trbdf2_R.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_im_R.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_trbdf2.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_im_E.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_trbdf2_E.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+
+    with fd.CheckpointFile("convergence_ds"+str(T*60*60)+"_"+str(ref)+"_"+str(dmax)+".h5", 'r') as afile:
         mesh = afile.load_mesh("Mesh")
         uI = afile.load_function(mesh, "u_outI")
         hI = afile.load_function(mesh, "h_outI")
@@ -95,23 +96,23 @@ for i, T in enumerate(dt):
     # print(f"L2 error at dt: {T} is u: {U[i]}, h: {H[i]}")
 
 plt.figure()
-plt.plot(dt, UI, '-x', label='velocity IM')
-plt.plot(dt, HI, '-x', label='height IM')
-plt.plot(dt, UT, '-x', label='velocity TR-BDF2')
-plt.plot(dt, HT, '-x', label='height TR-BDF2')
-plt.plot(dt, UIR, '-x', label='velocity IM(R)')
-plt.plot(dt, HIR, '-x', label='height IM(R)')
-plt.plot(dt, UTR, '-x', label='velocity TR-BDF2(R)')
-plt.plot(dt, HTR, '-x', label='height TR-BDF2(R)')
-plt.plot(dt, UIE, '-x', label='velocity IM(E)')
-plt.plot(dt, HIE, '-x', label='height IM(E)')
-plt.plot(dt, UTE, '-x', label='velocity TR-BDF2(E)')
-plt.plot(dt, HTE, '-x', label='height TR-BDF2(E)')
+plt.plot(ref_level, UI, '-x', label='velocity IM')
+plt.plot(ref_level, HI, '-x', label='height IM')
+plt.plot(ref_level, UT, '-x', label='velocity TR-BDF2')
+plt.plot(ref_level, HT, '-x', label='height TR-BDF2')
+plt.plot(ref_level, UIR, '-x', label='velocity IM(R)')
+plt.plot(ref_level, HIR, '-x', label='height IM(R)')
+plt.plot(ref_level, UTR, '-x', label='velocity TR-BDF2(R)')
+plt.plot(ref_level, HTR, '-x', label='height TR-BDF2(R)')
+plt.plot(ref_level, UIE, '-x', label='velocity IM(E)')
+plt.plot(ref_level, HIE, '-x', label='height IM(E)')
+plt.plot(ref_level, UTE, '-x', label='velocity TR-BDF2(E)')
+plt.plot(ref_level, HTE, '-x', label='height TR-BDF2(E)')
 plt.xscale('log', base=2)
 plt.yscale('log')
 plt.legend()
-plt.xlabel('time step, dt')
+plt.xlabel('Spatial discretization level')
 plt.ylabel('Relative L2 error')
 plt.title("Comparison of the L2 difference of the methods")
-plt.savefig('convergence_new_'+str(dmax)+'.png')
+plt.savefig('convergence_spatial_'+str(dmax)+'.png')
         

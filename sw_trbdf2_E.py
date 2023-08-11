@@ -27,10 +27,10 @@ def main(raw_args=None, mesh=None, Gam=None):
     parser.add_argument('--schurpc', type=str, default='mass', help='Preconditioner for the Schur complement. mass==mass inverse, helmholtz==helmholtz inverse * laplace * mass inverse. Default is mass')
     parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
     parser.add_argument('--time_scheme', type=int, default=0, help='Timestepping scheme. 0=TR-BDF2.')
-    parser.add_argument('--write', type=int, default=0, help='Write files for convergence (dt varies). 0=None, 1=Convergence(IM), 2=Vorticity, 3=Rosenbrock')
-    parser.add_argument('--array', type=int, default=0, help='Write array. 0=None, 1=height, 2=vorticity')
+    parser.add_argument('--write', type=int, default=0, help='Write files for convergence (dt varies). 0=None, 1=Convergence, 2=Spatial 3=Vorticity')
+    parser.add_argument('--array', type=int, default=0, help='Write array. 0=None, 1=height and velocity, 2=vorticity')
     parser.add_argument('--iter', type=int, default=0, help='Write iteration count. Write number of steps and iterations per step')
-    parser.add_argument('--energy', type=int, default=0, help='Write normalized energy array')
+    parser.add_argument('--energy', type=int, default=0, help='Write normalized energy array, 1=time vary, 2=spatial vary')
 
     args = parser.parse_known_args(raw_args)
     args = args[0]
@@ -636,16 +636,23 @@ def main(raw_args=None, mesh=None, Gam=None):
             afile.save_function(h_out)
 
     elif args.write == 2:
+        u_out.interpolate(u0)
+        h_out.interpolate(h0)
+        with fd.CheckpointFile("convergence_ds"+str(dt)+"_"+str(nrefs)+"_"+str(dmax)+".h5", 'a') as afile:
+            afile.save_function(u_out)
+            afile.save_function(h_out) 
+
+    elif args.write == 3:
         q_out.interpolate(qn)
         with fd.CheckpointFile("vorticity_dt"+str(dt)+"_"+str(dmax)+".h5", 'a') as afile:
             afile.save_function(q_out)
 
-    elif args.write == 3:         
-        u_out.interpolate(u0)
-        h_out.interpolate(h0)
-        with fd.CheckpointFile("rosenbrock_dt"+str(dt)+"_"+str(dmax)+".h5", 'w') as afile:
-            afile.save_function(u_out)
-            afile.save_function(h_out)
+    # elif args.write == 3:         
+    #     u_out.interpolate(u0)
+    #     h_out.interpolate(h0)
+    #     with fd.CheckpointFile("rosenbrock_dt"+str(dt)+"_"+str(dmax)+".h5", 'w') as afile:
+    #         afile.save_function(u_out)
+    #         afile.save_function(h_out)
 
 
     if Gam != None:
