@@ -32,7 +32,7 @@ HTE = np.array([])
 dmax = args.dmax
 
 if args.w:
-    dt = [2.o**args.dt]
+    dt = [2.0**args.dt]
 else:    
     dt = [2.0**(-n) for n in range(0,10)]
 
