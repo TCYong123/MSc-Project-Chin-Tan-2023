@@ -41,7 +41,7 @@ T = 1.0
 for ref in ref_level:
     if args.w:
         Mesh = sw_create_mesh.main(["--ref_level="+str(ref), "--dmax="+str(dmax)])
-        sw_im.main(["--write=21", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt=0.0009765625"], Mesh)
+        sw_im.main(["--write=21", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
         sw_im.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
         sw_trbdf2_R.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
         sw_im_R.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)

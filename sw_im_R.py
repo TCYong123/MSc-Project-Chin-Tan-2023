@@ -31,6 +31,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     parser.add_argument('--array', type=int, default=0, help='Write array. 0=None, 1=height and velocity, 2=vorticity')
     parser.add_argument('--iter', type=int, default=0, help='Write iteration count. Write number of steps and iterations per step')
     parser.add_argument('--energy', type=int, default=0, help='Write normalized energy array, 1=time vary, 2=spatial vary')
+    parser.add_argument('--vorticity', type=int, default=0, help='Write vorticity array, 1=time vary, 2=spatial vary')
 
     args = parser.parse_known_args(raw_args)
     args = args[0]
@@ -513,7 +514,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     # qn = fd.Function(V0, name="Relative Vorticity")
     # veqn = q*p*dx + fd.inner(perp(fd.grad(p)), un)*dx
     qn = fd.Function(V0, name="Potential Vorticity")
-    veqn = q*h0*p*dx + fd.inner(perp(fd.grad(p)), un)*dx - p*f*dx
+    veqn = fd.inner(p, q*h0)*dx + fd.inner(perp(fd.grad(p)), u0)*dx - fd.inner(p, f)*dx
     vprob = fd.LinearVariationalProblem(fd.lhs(veqn), fd.rhs(veqn), qn)
     qparams = {'ksp_type':'cg'}
     qsolver = fd.LinearVariationalSolver(vprob,
@@ -549,6 +550,10 @@ def main(raw_args=None, mesh=None, Gam=None):
     energy_0 = fd.assemble(energy)
     energy_t = np.array([])
 
+    #vorticity
+    if args.vorticity != 0 : 
+        vorticity_t = np.array([])
+
     while t < tmax + 0.5*dt:
         PETSc.Sys.Print(t)
         t += dt
@@ -580,6 +585,13 @@ def main(raw_args=None, mesh=None, Gam=None):
             np.savetxt("imR_energy"+str(dt)+"_"+str(dmax)+".array", energy_t)
         if args.energy == 2:
             np.savetxt("imR_energy"+str(nrefs)+str(dt)+"_"+str(dmax)+".array", energy_t)
+
+        if args.vorticity == 1:
+            vorticity_t = np.append(vorticity_t, qn.dat.data)  
+            np.savetxt("imR_vorticity"+str(dt)+"_"+str(dmax)+".array", vorticity_t)
+        if args.vorticity == 2:
+            vorticity_t = np.append(vorticity_t, qn.dat.data)  
+            np.savetxt("imR_vorticity"+str(nrefs)+str(dt)+"_"+str(dmax)+".array", vorticity_t)
 
         u_out.interpolate(u0)
         h_out.interpolate(h0)

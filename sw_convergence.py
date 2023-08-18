@@ -34,18 +34,18 @@ dmax = args.dmax
 if args.w:
     dt = [2.0**args.dt]
 else:    
-    dt = [2.0**(-n) for n in range(0,10)]
+    dt = [2.0**(-n) for n in range(0,9)]
 
 for T in dt:
     if args.w:
-        Mesh = sw_create_mesh.main(["--ref_level=5", "--dmax="+str(dmax)])
-        sw_im.main(["--write=11", "--ref_level=5", "--dmax="+str(dmax), "--dt=0.0009765625"], Mesh)
-        sw_im.main(["--write=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
-        sw_trbdf2_R.main(["--write=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
-        sw_im_R.main(["--write=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
-        sw_trbdf2.main(["--write=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
-        sw_im_E.main(["--write=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
-        sw_trbdf2_E.main(["--write=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        Mesh = sw_create_mesh.main(["--ref_level=2", "--dmax="+str(dmax)])
+        sw_im.main(["--write=11", "--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_im.main(["--write=1", "--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_trbdf2_R.main(["--write=1", "--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_im_R.main(["--write=1", "--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_trbdf2.main(["--write=1", "--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_im_E.main(["--write=1", "--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
+        sw_trbdf2_E.main(["--write=1", "--ref_level=2", "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
 
     with fd.CheckpointFile("convergence_dt"+str(T*60*60)+"_"+str(dmax)+".h5", 'r') as afile:
         mesh = afile.load_mesh("Mesh")
