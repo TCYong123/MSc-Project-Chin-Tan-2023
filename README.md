@@ -1,5 +1,5 @@
 # MSc-Project-Chin-Tan-2023 
-Last modified date: 11/08/2023
+Last modified date: 18/08/2023
 
 Main Files: \
 sw_im.py: Crank-Nicholson and Implicit Midpoint methods \
@@ -17,8 +17,7 @@ sw_height: Plot the height of a point against time \
 sw_iteration.py: Record the number of steps and iterations per step done by a method \
 sw_spectral: Perform Hann Window on data \ 
 sw_spatial.py: Look at distributions of energy as spatial discretization ref_level changes\
-sw_vort.py: Similar to sw_height but for vorticity \
-sw_vorticity.py: Similar to sw_convergence but for vorticity \
+sw_vorticity.py: Record vorticity over the time period \
 
 
 Supportive File: \
@@ -29,3 +28,4 @@ Redundant Files: \
 sw_test.py: File containing IM and TRBDF2 methods to compare their L2-norm directly \
 sw_conver.py: modified sw_convergence script to use sw_test.py 
 sw_rosenbrock.py: Similar to sw_convergence but for rosenbrock method \
+sw_vort.py: Similar to sw_height but for vorticity \
