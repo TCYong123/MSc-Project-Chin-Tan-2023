@@ -535,7 +535,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     qsolver = fd.LinearVariationalSolver(vprob,
                                         solver_parameters=qparams)
 
-    file_sw = fd.File('tr'+name+'.pvd')
+    file_sw = fd.File('trR'+name+'.pvd')
     etan.assign(h0 - H + b)
     un.assign(u0)
     qsolver.solve()
