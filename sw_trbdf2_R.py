@@ -602,7 +602,7 @@ def main(raw_args=None, mesh=None, Gam=None):
         if args.energy == 1:
             np.savetxt("trR_energy"+str(dt)+"_"+str(dmax)+".array", energy_t)
         if args.energy == 2:
-            np.savetxt("trR_energy"+str(nrefs)+str(dt)+"_"+str(dmax)+".array", energy_t)            
+            np.savetxt("trR_energy"+str(nrefs)+"_"+str(dt)+"_"+str(dmax)+".array", energy_t)            
        
         if args.vorticity == 1:
             vorticity_t = np.append(vorticity_t, qn.dat.data)  

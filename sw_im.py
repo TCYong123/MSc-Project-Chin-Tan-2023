@@ -601,7 +601,7 @@ def main(raw_args=None, mesh=None, Gam=None):
             np.savetxt("im_vorticity"+str(dt)+"_"+str(dmax)+".array", vorticity_t)
         if args.vorticity == 2:
             vorticity_t = np.append(vorticity_t, qn.dat.data)  
-            np.savetxt("im_vorticity"+str(nrefs)+str(dt)+"_"+str(dmax)+".array", vorticity_t)
+            np.savetxt("im_vorticity"+str(nrefs)+"_"+str(dt)+"_"+str(dmax)+".array", vorticity_t)
 
         u_out.interpolate(u0)
         h_out.interpolate(h0)
@@ -644,7 +644,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     if args.write == 11:
         u_out_ref.interpolate(u0)
         h_out_ref.interpolate(h0)
-        dt = args.dt
+        dt = 60*60*args.dt
         with fd.CheckpointFile("convergence_dt"+str(dt)+"_"+str(dmax)+".h5", 'w') as afile:
             afile.save_function(u_out_ref)
             afile.save_function(h_out_ref)
@@ -659,7 +659,7 @@ def main(raw_args=None, mesh=None, Gam=None):
     elif args.write == 21:
         u_out_ref.interpolate(u0)
         h_out_ref.interpolate(h0)
-        dt = args.dt
+        dt = 60*60*args.dt
         with fd.CheckpointFile("convergence_ds"+str(dt)+"_"+str(nrefs)+"_"+str(dmax)+".h5", 'w') as afile:
             afile.save_function(u_out_ref)
             afile.save_function(h_out_ref)

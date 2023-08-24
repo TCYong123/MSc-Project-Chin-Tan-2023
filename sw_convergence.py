@@ -19,8 +19,10 @@ parser.add_argument('--dmax', type=float, default=15.0)
 parser.add_argument('--dt', type=int, default=1)
 args = parser.parse_known_args()
 args = args[0]
-U = np.array([])
-H = np.array([])
+UI = np.array([])
+HI = np.array([])
+UT = np.array([])
+HT = np.array([])
 UIR = np.array([])
 HIR = np.array([])
 UTR = np.array([])
@@ -32,9 +34,9 @@ HTE = np.array([])
 dmax = args.dmax
 
 if args.w:
-    dt = [2.0**args.dt]
+    dt = [2.0**(-args.dt)]
 else:    
-    dt = [2.0**(-n) for n in range(0,9)]
+    dt = [2.0**(-n) for n in range(-3,9)]
 
 for T in dt:
     if args.w:
@@ -78,10 +80,10 @@ for T in dt:
     uTE_error = (fd.sqrt(fd.assemble(fd.dot(uTE - u_ref, uTE - u_ref) * fd.dx))) 
     hTE_error = (fd.sqrt(fd.assemble(fd.dot(hTE - h_ref, hTE - h_ref) * fd.dx)))       
 
-    UI = np.append(U, uI_error)
-    HI = np.append(H, hI_error)
-    UT = np.append(U, uT_error)
-    HT = np.append(H, hT_error)
+    UI = np.append(UI, uI_error)
+    HI = np.append(HI, hI_error)
+    UT = np.append(UT, uT_error)
+    HT = np.append(HT, hT_error)
     UIR = np.append(UIR, uIR_error)
     HIR = np.append(HIR, hIR_error)
     UTR = np.append(UTR, uTR_error)
@@ -98,10 +100,28 @@ plt.plot(dt, UI, '-x', label='velocity IM')
 plt.plot(dt, HI, '-x', label='height IM')
 plt.plot(dt, UT, '-x', label='velocity TR-BDF2')
 plt.plot(dt, HT, '-x', label='height TR-BDF2')
+plt.xscale('log', base=2)
+plt.yscale('log')
+plt.legend()
+plt.xlabel('time step, dt')
+plt.ylabel('Relative L2 error')
+plt.title("Comparison of the L2 difference for Standard")
+plt.savefig('convergence_new_s'+str(dmax)+'.png')
+
+plt.figure()
 plt.plot(dt, UIR, '-x', label='velocity IM(R)')
 plt.plot(dt, HIR, '-x', label='height IM(R)')
 plt.plot(dt, UTR, '-x', label='velocity TR-BDF2(R)')
 plt.plot(dt, HTR, '-x', label='height TR-BDF2(R)')
+plt.xscale('log', base=2)
+plt.yscale('log')
+plt.legend()
+plt.xlabel('time step, dt')
+plt.ylabel('Relative L2 error')
+plt.title("Comparison of the L2 difference for Rosenbrock")
+plt.savefig('convergence_new_r'+str(dmax)+'.png')
+
+plt.figure()
 plt.plot(dt, UIE, '-x', label='velocity IM(E)')
 plt.plot(dt, HIE, '-x', label='height IM(E)')
 plt.plot(dt, UTE, '-x', label='velocity TR-BDF2(E)')
@@ -111,6 +131,6 @@ plt.yscale('log')
 plt.legend()
 plt.xlabel('time step, dt')
 plt.ylabel('Relative L2 error')
-plt.title("Comparison of the L2 difference of the methods")
-plt.savefig('convergence_new_'+str(dmax)+'.png')
+plt.title("Comparison of the L2 difference for Eisenstat-Walker")
+plt.savefig('convergence_new_ew'+str(dmax)+'.png')
         

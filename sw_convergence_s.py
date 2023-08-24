@@ -19,8 +19,10 @@ parser.add_argument('--dmax', type=float, default=15.0)
 parser.add_argument('--ref', type=int, default=5)
 args = parser.parse_known_args()
 args = args[0]
-U = np.array([])
-H = np.array([])
+UI = np.array([])
+HI = np.array([])
+UT = np.array([])
+HT = np.array([])
 UIR = np.array([])
 HIR = np.array([])
 UTR = np.array([])
@@ -34,7 +36,7 @@ dmax = args.dmax
 if args.w:
     ref_level = [args.ref]
 else:    
-    ref_level = [1, 2, 3, 4, 5]
+    ref_level = [1, 2, 3]
 
 T = 1.0
 
@@ -49,7 +51,7 @@ for ref in ref_level:
         sw_im_E.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
         sw_trbdf2_E.main(["--write=2", "--ref_level="+str(ref), "--dmax="+str(dmax), "--dt="+str(T)], Mesh)
 
-    with fd.CheckpointFile("convergence_ds"+str(T*60*60)+"_"+str(ref)+"_"+str(dmax)+".h5", 'r') as afile:
+    with fd.CheckpointFile("convergence_ds"+str(T*60*60)+"_"+str(ref-1)+"_"+str(dmax)+".h5", 'r') as afile:
         mesh = afile.load_mesh("Mesh")
         u_ref = afile.load_function(mesh, "u_outref")
         h_ref = afile.load_function(mesh, "h_outref") 
@@ -80,10 +82,10 @@ for ref in ref_level:
     uTE_error = (fd.sqrt(fd.assemble(fd.dot(uTE - u_ref, uTE - u_ref) * fd.dx))) 
     hTE_error = (fd.sqrt(fd.assemble(fd.dot(hTE - h_ref, hTE - h_ref) * fd.dx)))       
 
-    UI = np.append(U, uI_error)
-    HI = np.append(H, hI_error)
-    UT = np.append(U, uT_error)
-    HT = np.append(H, hT_error)
+    UI = np.append(UI, uI_error)
+    HI = np.append(HI, hI_error)
+    UT = np.append(UT, uT_error)
+    HT = np.append(HT, hT_error)
     UIR = np.append(UIR, uIR_error)
     HIR = np.append(HIR, hIR_error)
     UTR = np.append(UTR, uTR_error)
@@ -108,11 +110,10 @@ plt.plot(ref_level, UIE, '-x', label='velocity IM(E)')
 plt.plot(ref_level, HIE, '-x', label='height IM(E)')
 plt.plot(ref_level, UTE, '-x', label='velocity TR-BDF2(E)')
 plt.plot(ref_level, HTE, '-x', label='height TR-BDF2(E)')
-plt.xscale('log', base=2)
-plt.yscale('log')
 plt.legend()
 plt.xlabel('Spatial discretization level')
 plt.ylabel('Relative L2 error')
 plt.title("Comparison of the L2 difference of the methods")
-plt.savefig('convergence_spatial_'+str(dmax)+'.png')
+plt.show()
+# plt.savefig('convergence_spatial_'+str(dmax)+'.png')
         

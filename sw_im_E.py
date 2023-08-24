@@ -591,7 +591,7 @@ def main(raw_args=None, mesh=None, Gam=None):
             np.savetxt("imE_vorticity"+str(dt)+"_"+str(dmax)+".array", vorticity_t)
         if args.vorticity == 2:
             vorticity_t = np.append(vorticity_t, qn.dat.data)  
-            np.savetxt("imE_vorticity"+str(nrefs)+str(dt)+"_"+str(dmax)+".array", vorticity_t)
+            np.savetxt("imE_vorticity"+str(nrefs)+"_"+str(dt)+"_"+str(dmax)+".array", vorticity_t)
 
         u_out.interpolate(u0)
         h_out.interpolate(h0)
