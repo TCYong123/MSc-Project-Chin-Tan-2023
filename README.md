@@ -1,5 +1,5 @@
 # MSc-Project-Chin-Tan-2023 
-Last modified date: 24/08/2023
+Last modified date: 28/08/2023
 
 Main Files: \
 sw_im.py: Crank-Nicholson and Implicit Midpoint methods \
@@ -11,7 +11,7 @@ sw_trbdf2_E.py: Eisenstat-Walker version of TR-BDF2 \
 sw_convergence.py: calculate L2-norm between IM (small dt) and other methods to understand convergence rate as dt varies\
 sw_energy.py: Analyse the energy as each time (also iterations and stepcount) \
 sw_height: Plot the height of a point against time \
-sw_iteration.py: Record the number of steps and iterations per step done by a method \
+sw_iter.py: Record the number of steps and iterations per step done by a method \
 sw_spectral: Perform Hann Window on data \ 
 sw_spatial.py: Look at distributions of energy as spatial discretization ref_level changes\
 sw_vorticity.py: Record vorticity over the time period \
