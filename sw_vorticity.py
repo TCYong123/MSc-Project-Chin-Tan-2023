@@ -29,7 +29,7 @@ dmax = args.dmax
 if args.w:
     dt = [2.0**(-args.dt)]
 else:    
-    dt = [2.0**(-n) for n in range(-1,7)]
+    dt = [2.0**(-n) for n in range(-2, 5)]
 
 for T in dt:
     if args.w:
