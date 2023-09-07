@@ -19,6 +19,7 @@ parser.add_argument('--dmax', type=float, default=50.0)
 parser.add_argument('--dt', type=int, default=0)
 args = parser.parse_known_args()
 args = args[0]
+QI = np.array([])
 QT = np.array([])
 QIR = np.array([])
 QTR = np.array([])
@@ -29,7 +30,7 @@ dmax = args.dmax
 if args.w:
     dt = [2.0**(-args.dt)]
 else:    
-    dt = [2.0**(-n) for n in range(-2, 5)]
+    dt = [2.0**(-n) for n in range(-1,3)]
 
 for T in dt:
     if args.w:
@@ -50,12 +51,14 @@ for T in dt:
         qIE = afile.load_function(mesh, "q_outIE")
         qTE = afile.load_function(mesh, "q_outTE")
 
-    qT_error = (fd.sqrt(fd.assemble(fd.dot(qT - qI, qT - qI) * fd.dx))) 
-    qIR_error = (fd.sqrt(fd.assemble(fd.dot(qIR - qI, qIR - qI) * fd.dx))) 
-    qTR_error = (fd.sqrt(fd.assemble(fd.dot(qTR - qI, qTR - qI) * fd.dx))) 
-    qIE_error = (fd.sqrt(fd.assemble(fd.dot(qIE - qI, qIE - qI) * fd.dx))) 
-    qTE_error = (fd.sqrt(fd.assemble(fd.dot(qTE - qI, qTE - qI) * fd.dx))) 
+    qI_error = (fd.sqrt(fd.assemble(fd.dot(qI, qI) * fd.dx))) 
+    qT_error = (fd.sqrt(fd.assemble(fd.dot(qT, qT) * fd.dx))) 
+    qIR_error = (fd.sqrt(fd.assemble(fd.dot(qIR, qIR) * fd.dx))) 
+    qTR_error = (fd.sqrt(fd.assemble(fd.dot(qTR, qTR) * fd.dx))) 
+    qIE_error = (fd.sqrt(fd.assemble(fd.dot(qIE, qIE) * fd.dx))) 
+    qTE_error = (fd.sqrt(fd.assemble(fd.dot(qTE, qTE) * fd.dx))) 
 
+    QI = np.append(QI, qI_error)
     QT = np.append(QT, qT_error)
     QIR = np.append(QIR, qIR_error)
     QTR = np.append(QTR, qTR_error)
@@ -64,17 +67,18 @@ for T in dt:
 
 
 plt.figure()
-plt.plot(dt, QT, '-x', label='vorticity TR-BDF2')
-plt.plot(dt, QIR, '-x', label='vorticity IM(R)')
-plt.plot(dt, QTR, '-x', label='vorticity TR-BDF2(R)')
-plt.plot(dt, QIE, '-x', label='vorticity IM(E)')
-plt.plot(dt, QTE, '-x', label='vorticity TR-BDF2(E)')
+plt.plot(dt, QI, '-x', label='IM')
+plt.plot(dt, QT, '-x', label='TR-BDF2')
+plt.plot(dt, QIR, '-x', label='IM(R)')
+plt.plot(dt, QTR, '-x', label='TR-BDF2(R)')
+plt.plot(dt, QIE, '-x', label='IM(E)')
+plt.plot(dt, QTE, '-x', label='TR-BDF2(E)')
 plt.xscale('log', base=2)
-plt.yscale('log')
+# plt.yscale('log')
 plt.legend()
 plt.xlabel('time step, dt')
-plt.ylabel('Relative L2 error')
-plt.title("Comparison of the L2 difference of the methods")
+plt.ylabel('Normalized vorticity')
+plt.title("Vorticity comparison")
 plt.show()
-plt.savefig('vorticity_new_'+str(dt)+'.png')
+# plt.savefig('vorticity_new_'+str(dt)+'.png')
         

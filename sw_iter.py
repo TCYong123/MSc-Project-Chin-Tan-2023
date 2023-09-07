@@ -15,30 +15,34 @@ import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--w', type=bool, default=False) #Toggle writing of files
-parser.add_argument('--dmax', type=float, default=50)
+parser.add_argument('--dmax', type=float, default=50.0)
 parser.add_argument('--type', type=int, default=1)
+parser.add_argument('--dt', type=float, default=-1.0)
 args = parser.parse_known_args()
 args = args[0]
 dmax = args.dmax
-dt = [1.0*n for n in range(1, 10)]
+if args.dt != -1.0:
+    dt = [1.0*args.dt]
+else:
+    dt = [1.0*n for n in range(1, 10)]
 
 for T in dt:
     if args.w == True:
         mesh = sw_create_mesh.main(["--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)])
         if args.type == 1:
-            sw_im.main(["--kspschur 1000", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
+            sw_im.main(["--energy=1", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
         elif args.type == 2:
-            sw_trbdf2.main(["--kspschur 1000", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
+            sw_trbdf2.main(["--energy=1", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
         elif args.type == 3:
-            sw_im_R.main(["--kspschur 1000", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
+            sw_im_R.main(["--energy=1", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
         elif args.type == 4:
-            sw_trbdf2_R.main(["--kspschur 1000", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
+            sw_trbdf2_R.main(["--energy=1", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
         elif args.type == 5:
-            sw_im_E.main(["--kspschur 1000", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
+            sw_im_E.main(["--energy=1", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
         elif args.type == 6:    
-            sw_trbdf2_E.main(["--kspschur 1000", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
+            sw_trbdf2_E.main(["--energy=1", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(T)], mesh)
 
-# T = dt*60*60
+# T = dt[0]*60*60
 
 # im_itcount = np.loadtxt("im_itcount_"+str(T)+"_"+str(dmax)+".array")
 # tr_itcount = np.loadtxt("tr_itcount_"+str(T)+"_"+str(dmax)+".array")
@@ -61,7 +65,8 @@ for T in dt:
 # plt.legend()
 # plt.title("Newton's Solve required for each methods")
 # plt.xlabel('Step count')
-# plt.ylabel('Total number of linear solves')          
+# plt.ylabel('Total number of linear solves')         
+# plt.show() 
 # plt.savefig('iteration_im_'+str(T)+'_'+str(dmax)+'.png')
 
 # plt.figure()
@@ -71,7 +76,8 @@ for T in dt:
 # plt.legend()
 # plt.title("Newton's Solve required for each methods")
 # plt.xlabel('Step count')
-# plt.ylabel('Total number of linear solves')          
+# plt.ylabel('Total number of linear solves')        
+# plt.show()  
 # plt.savefig('iteration_tr_'+str(T)+'_'+str(dmax)+'.png')
 
 

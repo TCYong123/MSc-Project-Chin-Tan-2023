@@ -546,9 +546,9 @@ def main(raw_args=None, mesh=None, Gam=None):
     stepcount = 0
 
     #energy
-    energy = 0.5*fd.inner(u0, u0)*H*dx + 0.5*g*(h0)*(h0)*dx + g*h0*b*dx
+    energy = 0.5*fd.inner(u0, u0)*h0*dx + 0.5*g*(h0)*(h0)*dx + g*h0*b*dx
     energy_0 = fd.assemble(energy)
-    energy_t = np.array([])
+    energy_t = np.array([energy_0])
 
     #vorticity
     if args.vorticity != 0 : 
@@ -580,11 +580,16 @@ def main(raw_args=None, mesh=None, Gam=None):
         stepcount_array = np.append(stepcount_array, stepcount)
         itcount_array = np.append(itcount_array, itcount)
 
-        energy_t = np.append(energy_t, ((fd.assemble(energy) - energy_0)/energy_0))
+        energy_t = np.append(energy_t, (fd.assemble(energy)))
         if args.energy == 1:
-            np.savetxt("imE_energy"+str(dt)+"_"+str(dmax)+".array", energy_t)
+            np.savetxt("imE_benergy"+str(dt)+"_"+str(dmax)+".array", energy_t)
         if args.energy == 2:
-            np.savetxt("imE_energy"+str(nrefs)+str(dt)+"_"+str(dmax)+".array", energy_t)
+            np.savetxt("imE_benergy"+str(nrefs)+str(dt)+"_"+str(dmax)+".array", energy_t)
+
+        if args.iter == 1:
+            np.savetxt("imE_stepcount_"+str(dt)+"_"+str(dmax)+".array", stepcount_array)  
+            np.savetxt("imE_itcount_"+str(dt)+"_"+str(dmax)+".array", itcount_array)   
+
 
         if args.vorticity == 1:
             vorticity_t = np.append(vorticity_t, qn.dat.data)  
@@ -649,9 +654,6 @@ def main(raw_args=None, mesh=None, Gam=None):
                 afile.save_function(u_out)
                 afile.save_function(h_out)
 
-    if args.iter == 1:
-        np.savetxt("imE_stepcount_"+str(dt)+"_"+str(dmax)+".array", stepcount_array)  
-        np.savetxt("imE_itcount_"+str(dt)+"_"+str(dmax)+".array", itcount_array)   
 
 if __name__ == "__main__":
     main()

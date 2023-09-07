@@ -16,11 +16,11 @@ import numpy as np
 parser = argparse.ArgumentParser()
 parser.add_argument('--w', type=bool, default=False) #Toggle writing of files
 parser.add_argument('--dmax', type=float, default=50.0)
-parser.add_argument('--dt', type=float, default=0)
+parser.add_argument('--dt', type=float, default=1)
 args = parser.parse_known_args()
 args = args[0]
 dmax = args.dmax
-dt = 2.0**(-args.dt)
+dt = 1.0*(args.dt)
 
 if args.w == True:
     mesh = sw_create_mesh.main(["--ref_level=5", "--dmax="+str(dmax), "--dt="+str(dt)])
@@ -32,30 +32,39 @@ if args.w == True:
     sw_trbdf2_E.main(["--energy=1", "--iter=1", "--ref_level=5", "--dmax="+str(dmax), "--dt="+str(dt)], mesh)
 
 T = dt*60*60
-im_energy = np.loadtxt("im_energy"+str(T)+"_"+str(dmax)+".array")
-tr_energy = np.loadtxt("tr_energy"+str(T)+"_"+str(dmax)+".array")
-imR_energy = np.loadtxt("imR_energy"+str(T)+"_"+str(dmax)+".array")
-trR_energy= np.loadtxt("trR_energy"+str(T)+"_"+str(dmax)+".array")
-imE_energy = np.loadtxt("imE_energy"+str(T)+"_"+str(dmax)+".array")
-trE_energy= np.loadtxt("trE_energy"+str(T)+"_"+str(dmax)+".array")
+im_energy = np.loadtxt("im_benergy"+str(T)+"_"+str(dmax)+".array") 
+tr_energy = np.loadtxt("tr_benergy"+str(T)+"_"+str(dmax)+".array")
+imR_energy = np.loadtxt("imR_benergy"+str(T)+"_"+str(dmax)+".array")
+trR_energy= np.loadtxt("trR_benergy"+str(T)+"_"+str(dmax)+".array")
+# imE_energy = np.loadtxt("imE_benergy"+str(T)+"_"+str(dmax)+".array")
+# trE_energy= np.loadtxt("trE_benergy"+str(T)+"_"+str(dmax)+".array")
+
+im_energy2 = (im_energy - im_energy[0]) /im_energy[0]
+tr_energy2 = (tr_energy - tr_energy[0]) /tr_energy[0]
+imR_energy2 = (imR_energy - imR_energy[0]) /imR_energy[0]
+trR_energy2= (trR_energy - trR_energy[0]) /trR_energy[0]
+# imE_energy2 = (imE_energy - imE_energy[0]) /imE_energy[0]
+# trE_energy2= (trE_energy - trE_energy[0]) /trE_energy[0]
 
 n = np.arange(len(im_energy)*dt, step=dt)
 
-plt.figure()
-plt.semilogy(n, im_energy, ':',label="IM")
-plt.semilogy(n, tr_energy, '--',label="TR-BDF2")
-plt.semilogy(n, imR_energy, '-.',label="IM(R)")
-plt.semilogy(n, trR_energy, ':',label="TR-BDF2(R)")
-plt.semilogy(n, imE_energy, '--',label="IM(E)")
-plt.semilogy(n, trE_energy, '-.',label="TR-BDF2(E)")
+# plt.figure()
+plt.plot(n, im_energy2,linewidth=2,linestyle='--', label="IM")
+plt.plot(n, tr_energy2,linewidth=2, label="TR-BDF2")
+plt.plot(n, imR_energy2,linewidth=2,linestyle='-.', label="IM(R)")
+plt.plot(n, trR_energy2,linewidth=2, linestyle=':',label="TR-BDF2(R)")
+# plt.plot(n, imE_energy2, label="IM(E)")
+# plt.plot(n, trE_energy2, label="TR-BDF2(E)")
 plt.legend()
+plt.ylabel('Relative energy difference')
 plt.xlabel("Time (hours)")
-plt.ylabel("Normalized energy difference")
-plt.title("Energy comparison, dt="+str(dt)+", dmax="+str(dmax))
-plt.savefig('energy_'+str(T)+'_'+str(dmax)+'.png')
+plt.title("Energy, dt="+str(dt)+", dmax="+str(dmax))
+# plt.ylim((-3.5*10**-6,1.5*10**-6))
+# plt.show()
+plt.savefig('benergy_'+str(T)+'_'+str(dmax)+'.png', bbox_inches="tight")
 
 
-#Equation for energy: "E = KE + PE = (h*|U|^2/2 + g*(h**2/2 + h*b)*dx"
+Equation for energy: "E = KE + PE = (h*|U|^2/2 + g*(h**2/2 + h*b)*dx"
 
 im_itcount = np.loadtxt("im_itcount_"+str(T)+"_"+str(dmax)+".array")
 tr_itcount = np.loadtxt("tr_itcount_"+str(T)+"_"+str(dmax)+".array")
@@ -72,22 +81,22 @@ imE_stepcount = np.loadtxt("imE_stepcount_"+str(T)+"_"+str(dmax)+".array")
 trE_stepcount= np.loadtxt("trE_stepcount_"+str(T)+"_"+str(dmax)+".array")
 
 plt.figure()
-plt.plot(im_stepcount, im_itcount, ':',label='IM')
-plt.plot(imR_stepcount, imR_itcount, '--',label='IM(R)')
-plt.plot(imE_stepcount, imE_itcount, '-.',label='IM(E)')
+plt.plot(im_stepcount, im_itcount, label='IM')
+plt.plot(imR_stepcount, imR_itcount, label='IM(R)')
+plt.plot(imE_stepcount, imE_itcount, label='IM(E)')
 plt.legend()
-plt.title("Newton's Solve required, dt="+str(dt)+", dmax="+str(dmax))
-plt.xlabel('Step count')
+plt.title("Newton's solve required, dt="+str(dt)+", dmax="+str(dmax))
+plt.xlabel('Stepcount')
 plt.ylabel('Total number of linear solves')          
 plt.savefig('iteration_im_'+str(T)+'_'+str(dmax)+'.png')
 
 plt.figure()
-plt.plot(tr_stepcount, tr_itcount, ':',label='TR-BDF2')
-plt.plot(trR_stepcount, trR_itcount, '--',label='TR-BDF2(R)')
-plt.plot(trE_stepcount, trE_itcount, '-.',label='TR-BDF2(E)')
+plt.plot(tr_stepcount, tr_itcount, 'b',label='TR-BDF2')
+plt.plot(trR_stepcount, trR_itcount, 'r',label='TR-BDF2(R)')
+plt.plot(trE_stepcount, trE_itcount, 'g',label='TR-BDF2(E)')
 plt.legend()
-plt.title("Newton's Solve required, dt="+str(dt)+", dmax="+str(dmax))
-plt.xlabel('Step count')
+plt.title("Newton's solve required, dt="+str(dt)+", dmax="+str(dmax))
+plt.xlabel('Stepcount')
 plt.ylabel('Total number of linear solves')          
 plt.savefig('iteration_tr_'+str(T)+'_'+str(dmax)+'.png')
 
