@@ -64,7 +64,7 @@ plt.title("Energy, dt="+str(dt)+", dmax="+str(dmax))
 plt.savefig('benergy_'+str(T)+'_'+str(dmax)+'.png', bbox_inches="tight")
 
 
-Equation for energy: "E = KE + PE = (h*|U|^2/2 + g*(h**2/2 + h*b)*dx"
+# Equation for energy: "E = KE + PE = (h*|U|^2/2 + g*(h**2/2 + h*b)*dx"
 
 im_itcount = np.loadtxt("im_itcount_"+str(T)+"_"+str(dmax)+".array")
 tr_itcount = np.loadtxt("tr_itcount_"+str(T)+"_"+str(dmax)+".array")
@@ -81,21 +81,21 @@ imE_stepcount = np.loadtxt("imE_stepcount_"+str(T)+"_"+str(dmax)+".array")
 trE_stepcount= np.loadtxt("trE_stepcount_"+str(T)+"_"+str(dmax)+".array")
 
 plt.figure()
-plt.plot(im_stepcount, im_itcount, label='IM')
-plt.plot(imR_stepcount, imR_itcount, label='IM(R)')
-plt.plot(imE_stepcount, imE_itcount, label='IM(E)')
+plt.plot(im_stepcount, im_itcount, '-',label='IM')
+plt.plot(imR_stepcount, imR_itcount, '-,',label='IM(R)')
+plt.plot(imE_stepcount, imE_itcount, '--',label='IM(E)')
 plt.legend()
-plt.title("Newton's solve required, dt="+str(dt)+", dmax="+str(dmax))
+plt.title("Newton's solve, dt="+str(dt)+", dmax="+str(dmax))
 plt.xlabel('Stepcount')
 plt.ylabel('Total number of linear solves')          
 plt.savefig('iteration_im_'+str(T)+'_'+str(dmax)+'.png')
 
 plt.figure()
-plt.plot(tr_stepcount, tr_itcount, 'b',label='TR-BDF2')
-plt.plot(trR_stepcount, trR_itcount, 'r',label='TR-BDF2(R)')
-plt.plot(trE_stepcount, trE_itcount, 'g',label='TR-BDF2(E)')
+plt.plot(tr_stepcount, tr_itcount, 'b','-',label='TR-BDF2')
+plt.plot(trR_stepcount, trR_itcount, 'r','-,',label='TR-BDF2(R)')
+plt.plot(trE_stepcount, trE_itcount, 'g','--',label='TR-BDF2(E)')
 plt.legend()
-plt.title("Newton's solve required, dt="+str(dt)+", dmax="+str(dmax))
+plt.title("Newton's solve, dt="+str(dt)+", dmax="+str(dmax))
 plt.xlabel('Stepcount')
 plt.ylabel('Total number of linear solves')          
 plt.savefig('iteration_tr_'+str(T)+'_'+str(dmax)+'.png')

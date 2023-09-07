@@ -30,7 +30,7 @@ dmax = args.dmax
 if args.w:
     dt = [2.0**(-args.dt)]
 else:    
-    dt = [2.0**(-n) for n in range(-1,3)]
+    dt = [2.0**(-n) for n in range(-1,4)]
 
 for T in dt:
     if args.w:
@@ -51,34 +51,34 @@ for T in dt:
         qIE = afile.load_function(mesh, "q_outIE")
         qTE = afile.load_function(mesh, "q_outTE")
 
-    qI_error = (fd.sqrt(fd.assemble(fd.dot(qI, qI) * fd.dx))) 
-    qT_error = (fd.sqrt(fd.assemble(fd.dot(qT, qT) * fd.dx))) 
-    qIR_error = (fd.sqrt(fd.assemble(fd.dot(qIR, qIR) * fd.dx))) 
-    qTR_error = (fd.sqrt(fd.assemble(fd.dot(qTR, qTR) * fd.dx))) 
-    qIE_error = (fd.sqrt(fd.assemble(fd.dot(qIE, qIE) * fd.dx))) 
-    qTE_error = (fd.sqrt(fd.assemble(fd.dot(qTE, qTE) * fd.dx))) 
+    qI_error = (fd.sqrt(fd.assemble(fd.dot(qI-qI, qI-qI) * fd.dx))) 
+    qT_error = (fd.sqrt(fd.assemble(fd.dot(qT-qI, qT-qI) * fd.dx))) 
+    qIR_error = (fd.sqrt(fd.assemble(fd.dot(qIR-qI, qIR-qI) * fd.dx))) 
+    qTR_error = (fd.sqrt(fd.assemble(fd.dot(qTR-qI, qTR-qI) * fd.dx))) 
+    # qIE_error = (fd.sqrt(fd.assemble(fd.dot(qIE, qIE) * fd.dx))) 
+    # qTE_error = (fd.sqrt(fd.assemble(fd.dot(qTE, qTE) * fd.dx))) 
 
     QI = np.append(QI, qI_error)
     QT = np.append(QT, qT_error)
     QIR = np.append(QIR, qIR_error)
     QTR = np.append(QTR, qTR_error)
-    QIE = np.append(QIE, qIE_error)
-    QTE = np.append(QTE, qTE_error)
+    # QIE = np.append(QIE, qIE_error)
+    # QTE = np.append(QTE, qTE_error)
 
 
 plt.figure()
-plt.plot(dt, QI, '-x', label='IM')
-plt.plot(dt, QT, '-x', label='TR-BDF2')
-plt.plot(dt, QIR, '-x', label='IM(R)')
-plt.plot(dt, QTR, '-x', label='TR-BDF2(R)')
-plt.plot(dt, QIE, '-x', label='IM(E)')
-plt.plot(dt, QTE, '-x', label='TR-BDF2(E)')
+# plt.plot(dt, QI, '--x', label='IM')
+plt.plot(dt, QT, '-.o', label='TR-BDF2')
+plt.plot(dt, QIR, '--^', label='IM(R)')
+plt.plot(dt, QTR, '-*', label='TR-BDF2(R)')
+# plt.plot(dt, QIE, '-x', label='IM(E)')
+# plt.plot(dt, QTE, '-x', label='TR-BDF2(E)')
 plt.xscale('log', base=2)
 # plt.yscale('log')
 plt.legend()
-plt.xlabel('time step, dt')
-plt.ylabel('Normalized vorticity')
-plt.title("Vorticity comparison")
-plt.show()
-# plt.savefig('vorticity_new_'+str(dt)+'.png')
+plt.xlabel('time step size, dt')
+plt.ylabel('L2 difference')
+plt.title("Potential vorticity, dmax=50.0")
+# plt.show()
+plt.savefig('vorticity_new_'+str(dt)+'.png', bbox_inches="tight")
         
